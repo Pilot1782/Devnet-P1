@@ -17,4 +17,4 @@ Use local SQLite or MongoDB?
 
 ## Application
 
-GUI via [Xamarin](https://dotnet.microsoft.com/en-us/apps/xamarin/xamarin-forms)
+GUI via [MAUI](https://dotnet.microsoft.com/en-us/apps/maui)
