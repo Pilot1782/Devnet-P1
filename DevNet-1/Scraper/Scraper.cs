@@ -11,7 +11,11 @@ namespace DevNet_1.Scraper
 
         public Scraper()
         {
-            _driver = new ChromeDriver();
+            // Make chrome headless
+            var chromeOptions = new ChromeOptions();
+            chromeOptions.AddArguments("headless");
+
+            _driver = new ChromeDriver(chromeOptions);
             _wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(45));
         }
 
@@ -40,19 +44,58 @@ namespace DevNet_1.Scraper
             );
 
             // Get the parcel ID
-            // TODO: Fix the XPath
             _wait.Until(
                 SeleniumExtras.WaitHelpers.ExpectedConditions.ElementIsVisible(
-                    By.XPath("//div[@id='Property Ownership']/div/div[1]")
+                    By.ClassName("field-ACCOUNT")
                 )
             );
 
-            var plist = _driver.FindElement(
-                By.XPath("//div[@id='Property Ownership']/div/div[1]/table/tr[1]/td/[1]")
+            var plist = _driver.FindElements(By.ClassName("field-ACCOUNT"));
+
+            Console.WriteLine(plist[1].Text);
+            return plist[1].Text;
+        }
+
+        public Dictionary<string, string> GetKeyData(string parcelId)
+        {
+            this._driver.Navigate().GoToUrl("https://www.ccappraiser.com/Show_parcel.asp?acct="+ parcelId +"&gen=T&tax=F&bld=F&oth=F&sal=F&lnd=F&leg=T");
+
+            // Wait for the first container to load
+            _wait.Until(
+                SeleniumExtras.WaitHelpers.ExpectedConditions.ElementIsVisible(
+                    By.ClassName("w3-container")
+                )
             );
 
-            Console.WriteLine(plist.Text);
-            return plist.Text;
+            // All cells have this tag, so get all of them
+            var cells = _driver.FindElements(By.ClassName("w3-cell"));
+
+            Dictionary<string, string> results = new Dictionary<string, string>();
+
+            // Loop through cells
+            for (int i = 0; i < cells.Count; i++)
+            {
+                if (cells[i].Text.IndexOf("Owner:") > -1) // Owner starts with "Owner:" word, seperated by \n
+                {
+                    results.Add("owner", cells[i].Text.Split("\n")[1]);
+                } else if (cells[i].Text == "Section/Township/Range:") // S/T/R is one string seperated by dashes, so split them
+                {
+                    var temp = cells[i + 1].Text.Split("-");
+                    results.Add("section", temp[0]);
+                    results.Add("township", temp[1]);
+                    results.Add("range", temp[2]);
+                } else if (cells[i].Text.IndexOf("Long Legal:") > -1) // Long Legal is split by \n
+                {
+                    results.Add("legal", cells[i].Text.Split("\n")[1]);
+                } else if (cells[i].Text == "Property Address: ") // Address is the cell after "Property Address: ", split by "\n" if there's multiple
+                {
+                    results.Add("address", cells[i + 1].Text.Split("\n")[0]);
+                } else if (cells[i].Text == "Property City & Zip: ") // City and zip is the cell after "Property City & Zip: "
+                {
+                    results.Add("city", cells[i + 1].Text);
+                }
+            }
+            return results;
         }
     }
 }
