@@ -1,4 +1,7 @@
-﻿namespace DevNet_1;
+﻿using System.Collections;
+using System.Collections.Generic;
+
+namespace DevNet_1;
 
 public class Script
 {
@@ -6,9 +9,14 @@ public class Script
     {
         var scrap = new Scraper.Scraper();
 
+        Console.WriteLine("Starting scraping...");
+
         var addr = "18500 Murdock Circle";
         var pid = scrap.GetPiD(addr);
 
-        Console.WriteLine($"Parcel ID for {addr}: {pid}");
+        Console.WriteLine("Got ParcelID, getting data...");
+
+        var keyData = scrap.GetKeyData(pid);
+        Console.WriteLine(string.Join(Environment.NewLine, keyData.Select(a => $"{a.Key}: {a.Value}")));
     }
 }
