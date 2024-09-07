@@ -12,7 +12,7 @@ namespace DevNet_1.Scraper
         public Scraper()
         {
             _driver = new ChromeDriver();
-            _wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(10));
+            _wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(45));
         }
 
         public String GetPiD(string addr)
@@ -28,6 +28,7 @@ namespace DevNet_1.Scraper
 
             // Enter the address into the search bar
             var search = _driver.FindElement(By.Id("esri_dijit_Geocoder_0_input"));
+            search.Clear();
             search.SendKeys(addr);
             search.SendKeys(Keys.Enter);
 
@@ -39,8 +40,15 @@ namespace DevNet_1.Scraper
             );
 
             // Get the parcel ID
+            // TODO: Fix the XPath
+            _wait.Until(
+                SeleniumExtras.WaitHelpers.ExpectedConditions.ElementIsVisible(
+                    By.XPath("//div[@id='Property Ownership']/div/div[1]")
+                )
+            );
+
             var plist = _driver.FindElement(
-                By.XPath("//div[@id='Property Ownership']/div/div[1]")
+                By.XPath("//div[@id='Property Ownership']/div/div[1]/table/tr[1]/td/[1]")
             );
 
             Console.WriteLine(plist.Text);
