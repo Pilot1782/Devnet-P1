@@ -1,10 +1,48 @@
-﻿using OpenQA.Selenium;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
+using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
 
 namespace DevNet_1.Scraper
 {
-    class Scraper
+    internal class Plot
+    {
+        private readonly int pid;
+        private readonly String owner;
+        private readonly String address;
+        private readonly String city;
+        private readonly String section;
+        private readonly String township;
+        private readonly String range;
+        private readonly String legal;
+
+        public Plot(int pid, String owner, String address, String city, String section, String township, String range, String legal)
+        {
+            this.pid = pid;
+            this.owner = owner;
+            this.address = address;
+            this.city = city;
+            this.section = section;
+            this.township = township;
+            this.range = range;
+            this.legal = legal;
+        }
+
+        public string Serialize()
+        {
+            return JsonConvert.SerializeObject(
+                this,
+                Formatting.Indented,
+                new JsonSerializerSettings
+                {
+                    ContractResolver = new CamelCasePropertyNamesContractResolver()
+                }
+            );
+        }
+    }
+
+    internal class Scraper
     {
         private readonly IWebDriver _driver;
         private readonly WebDriverWait _wait;
@@ -52,16 +90,10 @@ namespace DevNet_1.Scraper
 
             var plist = _driver.FindElements(By.ClassName("field-ACCOUNT"));
 
-            if (plist.Count() > 0)
-            {
-                return plist[1].Text;
-            } else
-            {
-                return "notfound";
-            }
+            return plist.Any() ? plist[1].Text : "notfound";
         }
 
-        public Dictionary<string, string> GetKeyData(string parcelId)
+        public Plot GetKeyData(string parcelId)
         {
             this._driver.Navigate().GoToUrl("https://www.ccappraiser.com/Show_parcel.asp?acct="+ parcelId +"&gen=T&tax=F&bld=F&oth=F&sal=F&lnd=F&leg=T");
 
@@ -80,27 +112,39 @@ namespace DevNet_1.Scraper
             // Loop through cells
             for (int i = 0; i < cells.Count; i++)
             {
-                if (cells[i].Text.IndexOf("Owner:") > -1) // Owner starts with "Owner:" word, seperated by \n
+                switch (cells[i].Text)
                 {
-                    results.Add("owner", cells[i].Text.Split("\n")[1]);
-                } else if (cells[i].Text == "Section/Township/Range:") // S/T/R is one string seperated by dashes, so split them
-                {
-                    var temp = cells[i + 1].Text.Split("-");
-                    results.Add("section", temp[0]);
-                    results.Add("township", temp[1]);
-                    results.Add("range", temp[2]);
-                } else if (cells[i].Text.IndexOf("Long Legal:") > -1) // Long Legal is split by \n
-                {
-                    results.Add("legal", cells[i].Text.Split("\n")[1]);
-                } else if (cells[i].Text == "Property Address: ") // Address is the cell after "Property Address: ", split by "\n" if there's multiple
-                {
-                    results.Add("address", cells[i + 1].Text.Split("\n")[0]);
-                } else if (cells[i].Text == "Property City & Zip: ") // City and zip is the cell after "Property City & Zip: "
-                {
-                    results.Add("city", cells[i + 1].Text);
+                    case var s when s.Contains("Owner:"):
+                        results.Add("owner", cells[i].Text.Split("\n")[1]);
+                        break;
+                    case "Section/Township/Range:":
+                        var temp = cells[i + 1].Text.Split("-");
+                        results.Add("section", temp[0]);
+                        results.Add("township", temp[1]);
+                        results.Add("range", temp[2]);
+                        break;
+                    case var s when s.Contains("Long Legal:"):
+                        results.Add("legal", cells[i].Text.Split("\n")[1]);
+                        break;
+                    case "Property Address: ":
+                        results.Add("address", cells[i + 1].Text.Split("\n")[0]);
+                        break;
+                    case "Property City & Zip: ":
+                        results.Add("city", cells[i + 1].Text);
+                        break;
                 }
             }
-            return results;
+
+            return new Plot(
+                int.Parse(parcelId),
+                results["owner"],
+                results["address"],
+                results["city"],
+                results["section"],
+                results["township"],
+                results["range"],
+                results["legal"]
+            );
         }
     }
 }

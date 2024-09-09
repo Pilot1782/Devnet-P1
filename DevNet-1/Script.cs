@@ -24,6 +24,6 @@ public class Script
         }
 
         var keyData = scrap.GetKeyData(pid);
-        Console.WriteLine(string.Join(Environment.NewLine, keyData.Select(a => $"{a.Key}: {a.Value}")));
+        Console.WriteLine(keyData.Serialize());
     }
 }
