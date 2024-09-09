@@ -14,7 +14,14 @@ public class Script
         var addr = "18500 Murdock Circle";
         var pid = scrap.GetPiD(addr);
 
-        Console.WriteLine("Got ParcelID, getting data...");
+        if (pid != "notfound")
+        {
+            Console.WriteLine("Got ParcelID, getting data...");
+        } else
+        {
+            Console.Error.WriteLine("Failed to locate property with address: " + addr);
+            return;
+        }
 
         var keyData = scrap.GetKeyData(pid);
         Console.WriteLine(string.Join(Environment.NewLine, keyData.Select(a => $"{a.Key}: {a.Value}")));

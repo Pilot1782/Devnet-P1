@@ -52,8 +52,13 @@ namespace DevNet_1.Scraper
 
             var plist = _driver.FindElements(By.ClassName("field-ACCOUNT"));
 
-            Console.WriteLine(plist[1].Text);
-            return plist[1].Text;
+            if (plist.Count() > 0)
+            {
+                return plist[1].Text;
+            } else
+            {
+                return "notfound";
+            }
         }
 
         public Dictionary<string, string> GetKeyData(string parcelId)
