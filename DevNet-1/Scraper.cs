@@ -121,7 +121,7 @@ namespace Devnet_1.Scraper
                 switch (cells[i].Text)
                 {
                     case var s when s.Contains("Owner:"):
-                        results.Add("owner", cells[i].Text.Split("\n")[1]);
+                        results.Add("owner", cells[i].Text.Split("\n")[1].Replace("\r", ""));
                         break;
                     case "Section/Township/Range:":
                         var temp = cells[i + 1].Text.Split("-");
@@ -133,7 +133,7 @@ namespace Devnet_1.Scraper
                         results.Add("legal", cells[i].Text.Split("\n")[1]);
                         break;
                     case "Property Address: ":
-                        results.Add("address", cells[i + 1].Text.Split("\n")[0]);
+                        results.Add("address", cells[i + 1].Text.Split("\n")[0].Replace("\r", ""));
                         break;
                     case "Property City & Zip: ":
                         results.Add("city", cells[i + 1].Text);
