@@ -3,12 +3,13 @@ using Newtonsoft.Json.Serialization;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
+using System.Xml;
 
-namespace DevNet_1.Scraper
+namespace Devnet_1.Scraper
 {
-    internal class Plot
+    /*internal class Plot
     {
-        private readonly int pid;
+        private readonly String pid;
         private readonly String owner;
         private readonly String address;
         private readonly String city;
@@ -17,7 +18,7 @@ namespace DevNet_1.Scraper
         private readonly String range;
         private readonly String legal;
 
-        public Plot(int pid, String owner, String address, String city, String section, String township, String range, String legal)
+        public Plot(String pid, String owner, String address, String city, String section, String township, String range, String legal)
         {
             this.pid = pid;
             this.owner = owner;
@@ -33,14 +34,14 @@ namespace DevNet_1.Scraper
         {
             return JsonConvert.SerializeObject(
                 this,
-                Formatting.Indented,
+                Newtonsoft.Json.Formatting.Indented,
                 new JsonSerializerSettings
                 {
                     ContractResolver = new CamelCasePropertyNamesContractResolver()
                 }
             );
         }
-    }
+    }*/
 
     internal class Scraper
     {
@@ -49,12 +50,17 @@ namespace DevNet_1.Scraper
 
         public Scraper()
         {
-            // Make chrome headless
+            _driver = GetSeleniumDriver();
+            _wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(45));
+        }
+        private static IWebDriver GetSeleniumDriver()
+        {
+            var chromeDriverService = ChromeDriverService.CreateDefaultService();
+            chromeDriverService.HideCommandPromptWindow = true;
+
             var chromeOptions = new ChromeOptions();
             chromeOptions.AddArguments("headless");
-
-            _driver = new ChromeDriver(chromeOptions);
-            _wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(45));
+            return new ChromeDriver(chromeDriverService, chromeOptions);
         }
 
         public String GetPiD(string addr)
@@ -93,9 +99,9 @@ namespace DevNet_1.Scraper
             return plist.Any() ? plist[1].Text : "notfound";
         }
 
-        public Plot GetKeyData(string parcelId)
+        public Dictionary<String, String> GetKeyData(string parcelId)
         {
-            this._driver.Navigate().GoToUrl("https://www.ccappraiser.com/Show_parcel.asp?acct="+ parcelId +"&gen=T&tax=F&bld=F&oth=F&sal=F&lnd=F&leg=T");
+            this._driver.Navigate().GoToUrl("https://www.ccappraiser.com/Show_parcel.asp?acct=" + parcelId + "&gen=T&tax=F&bld=F&oth=F&sal=F&lnd=F&leg=T");
 
             // Wait for the first container to load
             _wait.Until(
@@ -135,16 +141,7 @@ namespace DevNet_1.Scraper
                 }
             }
 
-            return new Plot(
-                int.Parse(parcelId),
-                results["owner"],
-                results["address"],
-                results["city"],
-                results["section"],
-                results["township"],
-                results["range"],
-                results["legal"]
-            );
+            return results;
         }
     }
 }
