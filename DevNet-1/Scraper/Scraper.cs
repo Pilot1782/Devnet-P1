@@ -1,49 +1,10 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
-using OpenQA.Selenium;
+﻿using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
-using System.Xml;
 
 namespace Devnet_1.Scraper
 {
-    /*internal class Plot
-    {
-        private readonly String pid;
-        private readonly String owner;
-        private readonly String address;
-        private readonly String city;
-        private readonly String section;
-        private readonly String township;
-        private readonly String range;
-        private readonly String legal;
-
-        public Plot(String pid, String owner, String address, String city, String section, String township, String range, String legal)
-        {
-            this.pid = pid;
-            this.owner = owner;
-            this.address = address;
-            this.city = city;
-            this.section = section;
-            this.township = township;
-            this.range = range;
-            this.legal = legal;
-        }
-
-        public string Serialize()
-        {
-            return JsonConvert.SerializeObject(
-                this,
-                Newtonsoft.Json.Formatting.Indented,
-                new JsonSerializerSettings
-                {
-                    ContractResolver = new CamelCasePropertyNamesContractResolver()
-                }
-            );
-        }
-    }*/
-
-    internal class Scraper
+    public class Scraper
     {
         private readonly IWebDriver _driver;
         private readonly WebDriverWait _wait;
@@ -101,7 +62,8 @@ namespace Devnet_1.Scraper
 
         public Dictionary<String, String> GetKeyData(string parcelId)
         {
-            this._driver.Navigate().GoToUrl("https://www.ccappraiser.com/Show_parcel.asp?acct=" + parcelId + "&gen=T&tax=F&bld=F&oth=F&sal=F&lnd=F&leg=T");
+            this._driver.Navigate().GoToUrl("https://www.ccappraiser.com/Show_parcel.asp?acct=" + parcelId +
+                                            "&gen=T&tax=F&bld=F&oth=F&sal=F&lnd=F&leg=T");
 
             // Wait for the first container to load
             _wait.Until(

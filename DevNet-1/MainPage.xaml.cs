@@ -1,5 +1,4 @@
-﻿using Devnet_1.Scraper;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System.Diagnostics;
 namespace Devnet_1
 {
