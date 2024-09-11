@@ -50,17 +50,14 @@ namespace Devnet_1.Scraper
 
         public Scraper()
         {
-            _driver = GetSeleniumDriver();
-            _wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(45));
-        }
-        private static IWebDriver GetSeleniumDriver()
-        {
             var chromeDriverService = ChromeDriverService.CreateDefaultService();
-            chromeDriverService.HideCommandPromptWindow = true;
+            chromeDriverService.HideCommandPromptWindow = true; // Hiding CMD window
 
             var chromeOptions = new ChromeOptions();
-            chromeOptions.AddArguments("headless");
-            return new ChromeDriver(chromeDriverService, chromeOptions);
+            chromeOptions.AddArguments("headless"); // Hiding chrome instance
+
+            _driver = new ChromeDriver(chromeDriverService, chromeOptions);
+            _wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(10));
         }
 
         public String GetPiD(string addr)
@@ -81,11 +78,18 @@ namespace Devnet_1.Scraper
             search.SendKeys(Keys.Enter);
 
             // Wait for the search results to load
-            _wait.Until(
-                SeleniumExtras.WaitHelpers.ExpectedConditions.ElementIsVisible(
-                    By.Id("dijit_layout_TabContainer_0")
-                )
-            );
+            try
+            {
+                _wait.Until(
+                    SeleniumExtras.WaitHelpers.ExpectedConditions.ElementIsVisible(
+                        By.Id("dijit_layout_TabContainer_0")
+                    )
+                );
+            }
+            catch (OpenQA.Selenium.WebDriverTimeoutException e)
+            {
+                return "notfound";
+            }
 
             // Get the parcel ID
             _wait.Until(
