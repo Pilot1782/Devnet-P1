@@ -1,6 +1,7 @@
 ﻿using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
+using System.Diagnostics;
 
 namespace Devnet_1.Scraper
 {
@@ -49,6 +50,7 @@ namespace Devnet_1.Scraper
             }
             catch (OpenQA.Selenium.WebDriverTimeoutException e)
             {
+                Debug.WriteLine(e.Message);
                 return "notfound";
             }
 
