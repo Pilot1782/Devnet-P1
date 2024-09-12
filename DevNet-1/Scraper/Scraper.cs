@@ -1,7 +1,6 @@
 ﻿using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
-using System.Diagnostics;
 
 namespace Devnet_1.Scraper
 {
@@ -48,10 +47,22 @@ namespace Devnet_1.Scraper
                     )
                 );
             }
-            catch (OpenQA.Selenium.WebDriverTimeoutException e)
+            catch (WebDriverTimeoutException)
             {
-                Debug.WriteLine(e.Message);
-                return "notfound";
+                // try and toggle the table on
+
+                var toggle = _driver.FindElement(By.CssSelector("div[title='Show Table']"));
+                toggle.Click();
+
+                try {
+                    _wait.Until(
+                        SeleniumExtras.WaitHelpers.ExpectedConditions.ElementIsVisible(
+                            By.Id("dijit_layout_TabContainer_0")
+                        )
+                    );
+                } catch (WebDriverTimeoutException) {
+                    return "notfound";
+                }
             }
 
             // Get the parcel ID
