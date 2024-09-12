@@ -57,6 +57,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<PackageReference Include="itext" Version="8" />
+		<PackageReference Include="itext.bouncy-castle-adapter" Version="8" />
+		<PackageReference Include="iTextSharp" Version="5.5.13.4" />
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 		<PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="$(MauiVersion)" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.0" />
@@ -64,6 +67,21 @@
 		<PackageReference Include="Selenium.WebDriver" Version="4.24.0" />
 		<PackageReference Include="Selenium.WebDriver.ChromeDriver" Version="128.0.6613.13700" />
 		<PackageReference Include="SeleniumExtras.WaitHelpers" Version="1.0.2" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Compile Update="Properties\Resources.Designer.cs">
+	    <DesignTime>True</DesignTime>
+	    <AutoGen>True</AutoGen>
+	    <DependentUpon>Resources.resx</DependentUpon>
+	  </Compile>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <EmbeddedResource Update="Properties\Resources.resx">
+	    <Generator>ResXFileCodeGenerator</Generator>
+	    <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+	  </EmbeddedResource>
 	</ItemGroup>
 
 </Project>
