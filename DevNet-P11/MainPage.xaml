@@ -46,6 +46,12 @@
                 Progress="0"
                 IsVisible="False"
             />
+
+            <Label
+                  x:Name="DebugLabel"
+                  Text=""
+                  IsVisible="False"
+              />
         </VerticalStackLayout>
     </ScrollView>
 

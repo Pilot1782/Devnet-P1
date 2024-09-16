@@ -23,7 +23,7 @@ namespace Devnet_P11.Scraper
 
         public String GetPiD(string addr)
         {
-            this._driver.Navigate().GoToUrl("https://agis.charlottecountyfl.gov/ccgis/");
+            _driver.Navigate().GoToUrl("https://agis.charlottecountyfl.gov/ccgis/");
 
             // Wait for the search bar to load
             _wait.Until(
@@ -74,10 +74,10 @@ namespace Devnet_P11.Scraper
 
             var plist = _driver.FindElements(By.ClassName("field-ACCOUNT"));
 
-            return plist.Any() ? plist[1].Text : "notfound";
+            return plist.Count != 0 ? plist[1].Text : "notfound";
         }
 
-        public Dictionary<String, String> GetKeyData(string parcelId)
+        public Dictionary<string, string> GetKeyData(string parcelId)
         {
             this._driver.Navigate().GoToUrl("https://www.ccappraiser.com/Show_parcel.asp?acct=" + parcelId +
                                             "&gen=T&tax=F&bld=F&oth=F&sal=F&lnd=F&leg=T");
