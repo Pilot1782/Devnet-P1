@@ -1,9 +1,9 @@
-﻿using iTextSharp.text;
-using iTextSharp.text.pdf;
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Reflection;
 using Devnet_P11.Scraper;
+using iText.Kernel.Pdf;
+using static Microsoft.Maui.Storage.FileSystem;
 
 namespace DevNet_P11;
 
@@ -35,10 +35,7 @@ public partial class MainPage
         if (pid != "notfound")
         {
             Debug.WriteLine("Got ParcelID, getting data...");
-            await MainThread.InvokeOnMainThreadAsync(() =>
-            {
-                DebugLabel.Text += "\nGot ParcelID, getting data...";
-            });
+            await MainThread.InvokeOnMainThreadAsync(() => { DebugLabel.Text += "\nGot ParcelID, getting data..."; });
         }
         else
         {
@@ -69,7 +66,8 @@ public partial class MainPage
         });
     }
 
-    private async Task AddTextToPdf(string inputPdfPath, string outputPdfPath, string textToAdd, System.Drawing.Point point)
+    private async Task AddTextToPdf(string inputPdfPath, string outputPdfPath, string textToAdd,
+        System.Drawing.Point point)
     {
         //create PdfReader object to read from the existing document
         Debug.WriteLine(
@@ -82,50 +80,50 @@ public partial class MainPage
             Assembly.GetExecutingAssembly().GetManifestResourceStream(inputPdfPath)
         );
 
-        await MainThread.InvokeOnMainThreadAsync(() =>
-        {
-            DebugLabel.Text += "\nAdding text to PDF...";
-        });
+        await MainThread.InvokeOnMainThreadAsync(() => { DebugLabel.Text += "\nAdding text to PDF..."; });
 
-        // Check to make sure input pdf exists
-        if (Assembly.GetExecutingAssembly().GetManifestResourceStream(inputPdfPath) == null)
+        try
         {
-            Debug.WriteLine("Input PDF not found.");
+            var stream = await OpenAppPackageFileAsync("input.pdf");
+            var reader2 = new StreamReader(stream);
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine(e.Message);
+            Debug.WriteLine("Input PDF not found: " + inputPdfPath);
+            await MainThread.InvokeOnMainThreadAsync(() => { DebugLabel.Text += "\nInput PDF not found."; });
+            return;
+        }
+
+        PdfReader reader;
+        PdfWriter writer;
+        PdfDocument pdfDoc;
+        try
+        {
+            reader = new PdfReader(
+                await OpenAppPackageFileAsync(inputPdfPath)
+            );
+            writer = new PdfWriter(
+                outputPdfPath
+            );
+
+            pdfDoc = new PdfDocument(reader, writer);
+        }
+        catch (Exception e)
+        {
+            Debug.WriteLine(e.Message);
+            Debug.WriteLine("Output PDF not found: " + outputPdfPath);
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                DebugLabel.Text += "\nInput PDF not found.";
+                DebugLabel.Text += "\nOutput PDF not found. " + e.Message;
             });
             return;
         }
 
-        using var reader = new PdfReader(
-            Assembly.GetExecutingAssembly().GetManifestResourceStream(inputPdfPath)
-        );
-        using var stamper = new PdfStamper(
-            reader,
-            new FileStream(outputPdfPath, FileMode.Create)
-        );
+        // get the number of pages in the original file
+        int numberOfPages = pdfDoc.GetNumberOfPages();
 
-        //select two pages from the original document
-        reader.SelectPages("1-2");
 
-        //getting the page size in order to subtract from the iTextSharp coordinates
-        var pageSize = reader.GetPageSize(1);
-
-        // PdfContentByte from stamper to add content to the pages over the original content
-        var overContent = stamper.GetOverContent(1);
-
-        //add content to the page using ColumnText
-        iTextSharp.text.Font font = new(iTextSharp.text.Font.FontFamily.COURIER, 45);
-
-        //setting up the X and Y coordinates of the document
-        var x = point.X;
-        var y = point.Y;
-
-        y = (int)(pageSize.Height - y);
-
-        ColumnText.ShowTextAligned(overContent, iTextSharp.text.Element.ALIGN_CENTER, new Phrase(textToAdd, font), x, y,
-            0);
     }
 
     private void OnRunClicked(object sender, EventArgs e)
@@ -138,8 +136,10 @@ public partial class MainPage
             Task.Run(() =>
             {
                 _ = AddTextToPdf(
-                    "DevNet_P11.Properties.Resources.inputpdf",
-                    "output.pdf",
+                    "input.pdf",
+                    Environment.GetFolderPath(
+                        Environment.SpecialFolder.UserProfile
+                    ) + @"\Documents\output.pdf",
                     "AAAAAAAAAAAAAAAAAAAAAAA",
                     new System.Drawing.Point(200, 200));
             });
