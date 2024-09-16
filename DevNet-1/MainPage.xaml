@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Devnet_1.MainPage">
+
+    <ScrollView>
+        <VerticalStackLayout
+            Padding="30,0"
+            Spacing="25">
+
+            <Label
+                Text="Basic Address Searching!"
+                Style="{StaticResource Headline}"
+                SemanticProperties.HeadingLevel="Level1" />
+
+            <Label
+                x:Name="OwnerLabel"
+                Text="Owner: " />
+            <Label
+                x:Name="AddressLabel"
+                Text="Address: " />
+            <Label
+                x:Name="STRLabel"
+                Text="Section: Township: Range: " />
+            <Label
+                x:Name="LegalLabel"
+                Text="Legal Description: " />
+
+            <Entry
+                x:Name="AddressInput"
+                />
+
+            <Button
+                x:Name="RunBtn"
+                Text="Click to Run" 
+                SemanticProperties.Hint="Retrieves Address Data"
+                Clicked="OnRunClicked"
+                HorizontalOptions="Fill" />
+
+            <Label
+                x:Name="ErrorLabel"
+                Text="" />
+
+            <ProgressBar
+                x:Name="ProgressLabel"
+                Progress="0"
+                IsVisible="False"
+                />
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>
