@@ -2,7 +2,13 @@
 using System.Diagnostics;
 using System.Reflection;
 using Devnet_P11.Scraper;
+using iText.IO.Font.Constants;
+using iText.Kernel.Font;
+using iText.Kernel.Geom;
 using iText.Kernel.Pdf;
+using iText.Kernel.Pdf.Annot;
+using iText.Kernel.Pdf.Canvas;
+using iText.Layout;
 using static Microsoft.Maui.Storage.FileSystem;
 
 namespace DevNet_P11;
@@ -95,15 +101,20 @@ public partial class MainPage
             return;
         }
 
-        PdfReader reader;
-        PdfWriter writer;
+        // copy the data from the input file to the output file
+        var inputPdf = await OpenAppPackageFileAsync(inputPdfPath);
+        var outputPdf = new FileStream(outputPdfPath, FileMode.Create);
+        await inputPdf.CopyToAsync(outputPdf);
+        inputPdf.Close();
+        outputPdf.Close();
+
         PdfDocument pdfDoc;
         try
         {
-            reader = new PdfReader(
+            var reader = new PdfReader(
                 await OpenAppPackageFileAsync(inputPdfPath)
             );
-            writer = new PdfWriter(
+            var writer = new PdfWriter(
                 outputPdfPath
             );
 
@@ -112,7 +123,7 @@ public partial class MainPage
         catch (Exception e)
         {
             Debug.WriteLine(e.Message);
-            Debug.WriteLine("Output PDF not found: " + outputPdfPath);
+            Debug.WriteLine("Output PDF not found: " + outputPdfPath + "\n" + e.Message);
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 DebugLabel.Text += "\nOutput PDF not found. " + e.Message;
@@ -120,10 +131,18 @@ public partial class MainPage
             return;
         }
 
-        // get the number of pages in the original file
-        int numberOfPages = pdfDoc.GetNumberOfPages();
+        var doc = new Document(pdfDoc);
 
+        // get the text from the doc
+        var canvas = new PdfCanvas(pdfDoc.GetFirstPage());
+        var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
+        canvas.SetFontAndSize(font, 12);
+        canvas.BeginText()
+            .MoveText(point.X, point.Y)
+            .ShowText(textToAdd)
+            .EndText();
 
+        doc.Close();
     }
 
     private void OnRunClicked(object sender, EventArgs e)
