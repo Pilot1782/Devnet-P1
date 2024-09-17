@@ -8,6 +8,12 @@ using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas;
 using iText.Layout;
 using static Microsoft.Maui.Storage.FileSystem;
+using System.Threading.Tasks;
+using System.Threading;
+using Windows.Storage.Pickers;
+using System.Text;
+using CommunityToolkit.Maui.Storage;
+using Org.BouncyCastle.Utilities;
 
 namespace DevNet_P11;
 
@@ -135,7 +141,7 @@ public partial class MainPage
         // get the text from the doc
         var canvas = new PdfCanvas(pdfDoc.GetFirstPage());
         var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
-        canvas.SetFontAndSize(font, 10);
+        canvas.SetFontAndSize(font, 8);
 
         foreach (var textItem in textToAdd)
         {
@@ -148,6 +154,57 @@ public partial class MainPage
         doc.Close();
     }
 
+    private int GetClosestInt(List<int> input, int target)
+    {
+        int res = input[0];
+        int diff = Math.Abs(input[0] - target);
+        foreach (int num in input)
+        {
+            int thisDiff = Math.Abs(num - target);
+            if (thisDiff < diff)
+            {
+                res = num;
+                diff = thisDiff;
+            }
+        }
+        return res;
+    }
+    // Multi-line splitting
+    private string[] SplitStringByLength(string input, int maxLength)
+    {
+        int numStrings = (int) Math.Ceiling((double) input.Length / maxLength);
+        string[] result = new string[numStrings];
+
+        var foundSpaces = new List<int>();
+        for (int i = input.IndexOf(' '); i > -1; i = input.IndexOf(' ', i + 1))
+        {
+            foundSpaces.Add(i);
+        }
+
+        Debug.WriteLine(input.Length);
+        try { 
+        for (int i = 0; i < numStrings; i++)
+        {
+            int startingSpace = GetClosestInt(foundSpaces, i * maxLength);
+            Debug.WriteLine(startingSpace);
+            if (i == numStrings - 1)
+            {
+                Debug.WriteLine("B1");
+                result[i] = input.Substring(startingSpace);
+            } else
+            {
+                int endingSpace = GetClosestInt(foundSpaces, (i * maxLength) + 80);
+                Debug.WriteLine(endingSpace);
+                Debug.WriteLine(input.Length);
+                Debug.WriteLine("B2");
+                result[i] = input.Substring(startingSpace, endingSpace - startingSpace);
+            }
+        }
+        }catch (Exception e) { Debug.WriteLine(e.ToString()); }
+
+        return result;
+    }
+
     private void OnRunClicked(object sender, EventArgs e)
     {
         if (AddressInput.Text != "")
@@ -157,33 +214,41 @@ public partial class MainPage
             Task.Run(async () =>
             {
                 Dictionary<string, string>? data = await RunScraper(AddressInput.Text);
+                if (data == null) { return; }
+
                 String outputPdf = "";
 
-                PickOptions options = new PickOptions();
-                options.FileTypes = FilePickerFileType.Pdf;
-                FileResult? result = await FilePicker.Default.PickAsync();
-                if (result != null)
+                var fileSaverResult = await FileSaver.Default.SaveAsync("OutputContract.pdf", await OpenAppPackageFileAsync("input.pdf"));
+                if (fileSaverResult.IsSuccessful)
                 {
-                    outputPdf = result.FullPath;
-                } else
+                    outputPdf = fileSaverResult.FilePath;
+                    Debug.WriteLine("Success");
+                }
+                else
                 {
-                    Debug.WriteLine("Output PDF not selected.");
+                    Debug.WriteLine("Output PDF selection failed: " + fileSaverResult.Exception);
                     await MainThread.InvokeOnMainThreadAsync(() =>
                     {
-                        DebugLabel.Text += "Output PDF not selected.";
+                        DebugLabel.Text += "\nOutput PDF selection failed: " + fileSaverResult.Exception;
                     });
                     return;
                 }
 
-                Dictionary<String, System.Drawing.Point> textToAdd = new Dictionary<String, System.Drawing.Point>();
+                string[] legalOutput = SplitStringByLength(data["legal"], 80);
+
+                Dictionary<String, System.Drawing.Point> textToAdd = new();
                 textToAdd.Add(
-                    "AN ADDDRESS HERE AAAAAAAAAAAAAAAAAAAAAAA", 
+                    data["address"], 
                     new System.Drawing.Point(120, 660)
                 );
-                textToAdd.Add(
-                    "SOME LEGAL DESCRIPTION HERE AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-                    new System.Drawing.Point(140, 640)
-                );
+
+                for (int i = 0; i < legalOutput.Length; i++)
+                {
+                    textToAdd.Add(
+                        legalOutput[i],
+                        new System.Drawing.Point(158, 648 - (i * 11))
+                    );
+                }
 
                 await AddTextToPdf(
                     "input.pdf",
