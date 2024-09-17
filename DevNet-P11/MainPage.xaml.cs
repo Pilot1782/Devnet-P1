@@ -4,9 +4,7 @@ using System.Reflection;
 using Devnet_P11.Scraper;
 using iText.IO.Font.Constants;
 using iText.Kernel.Font;
-using iText.Kernel.Geom;
 using iText.Kernel.Pdf;
-using iText.Kernel.Pdf.Annot;
 using iText.Kernel.Pdf.Canvas;
 using iText.Layout;
 using static Microsoft.Maui.Storage.FileSystem;
@@ -25,7 +23,7 @@ public partial class MainPage
 #endif
     }
 
-    private async void RunScraper(string addr)
+    private async Task<Dictionary<string, string>?> RunScraper(string addr)
     {
         var scrap = new Scraper();
 
@@ -51,7 +49,7 @@ public partial class MainPage
                 DebugLabel.Text += "\nFailed to locate property with address: " + addr;
             });
             Debug.WriteLine("Failed to locate property with address: " + addr);
-            return;
+            return null;
         }
 
         await MainThread.InvokeOnMainThreadAsync(() => { ProgressLabel.Progress = 0.66; });
@@ -70,10 +68,11 @@ public partial class MainPage
                 $"Section: {keyData["section"]}, Township: {keyData["township"]}, Range: {keyData["range"]}";
             LegalLabel.Text = $"Legal Description: {keyData["legal"]}";
         });
+
+        return keyData;
     }
 
-    private async Task AddTextToPdf(string inputPdfPath, string outputPdfPath, string textToAdd,
-        System.Drawing.Point point)
+    private async Task AddTextToPdf(string inputPdfPath, string outputPdfPath, Dictionary<String, System.Drawing.Point> textToAdd)
     {
         //create PdfReader object to read from the existing document
         Debug.WriteLine(
@@ -136,11 +135,15 @@ public partial class MainPage
         // get the text from the doc
         var canvas = new PdfCanvas(pdfDoc.GetFirstPage());
         var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
-        canvas.SetFontAndSize(font, 12);
-        canvas.BeginText()
-            .MoveText(point.X, point.Y)
-            .ShowText(textToAdd)
+        canvas.SetFontAndSize(font, 10);
+
+        foreach (var textItem in textToAdd)
+        {
+            canvas.BeginText()
+            .MoveText(textItem.Value.X, textItem.Value.Y)
+            .ShowText(textItem.Key)
             .EndText();
+        }
 
         doc.Close();
     }
@@ -151,16 +154,42 @@ public partial class MainPage
         {
             ProgressLabel.IsVisible = true;
             ProgressLabel.Progress = 0;
-            Task.Run(() => { RunScraper(AddressInput.Text); });
-            Task.Run(() =>
+            Task.Run(async () =>
             {
-                _ = AddTextToPdf(
+                Dictionary<string, string>? data = await RunScraper(AddressInput.Text);
+                String outputPdf = "";
+
+                PickOptions options = new PickOptions();
+                options.FileTypes = FilePickerFileType.Pdf;
+                FileResult? result = await FilePicker.Default.PickAsync();
+                if (result != null)
+                {
+                    outputPdf = result.FullPath;
+                } else
+                {
+                    Debug.WriteLine("Output PDF not selected.");
+                    await MainThread.InvokeOnMainThreadAsync(() =>
+                    {
+                        DebugLabel.Text += "Output PDF not selected.";
+                    });
+                    return;
+                }
+
+                Dictionary<String, System.Drawing.Point> textToAdd = new Dictionary<String, System.Drawing.Point>();
+                textToAdd.Add(
+                    "AN ADDDRESS HERE AAAAAAAAAAAAAAAAAAAAAAA", 
+                    new System.Drawing.Point(120, 660)
+                );
+                textToAdd.Add(
+                    "SOME LEGAL DESCRIPTION HERE AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+                    new System.Drawing.Point(140, 640)
+                );
+
+                await AddTextToPdf(
                     "input.pdf",
-                    Environment.GetFolderPath(
-                        Environment.SpecialFolder.UserProfile
-                    ) + @"\Documents\output.pdf",
-                    "AAAAAAAAAAAAAAAAAAAAAAA",
-                    new System.Drawing.Point(200, 200));
+                    outputPdf,
+                    textToAdd
+                );
             });
         }
         else
