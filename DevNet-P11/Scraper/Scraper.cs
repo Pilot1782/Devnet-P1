@@ -80,7 +80,7 @@ namespace Devnet_P11.Scraper
         public Dictionary<string, string> GetKeyData(string parcelId)
         {
             this._driver.Navigate().GoToUrl("https://www.ccappraiser.com/Show_parcel.asp?acct=" + parcelId +
-                                            "&gen=T&tax=F&bld=F&oth=F&sal=F&lnd=F&leg=T");
+                                            "&gen=T&tax=T&bld=F&oth=F&sal=F&lnd=F&leg=T");
 
             // Wait for the first container to load
             _wait.Until(
@@ -89,10 +89,10 @@ namespace Devnet_P11.Scraper
                 )
             );
 
+            Dictionary<string, string> results = new Dictionary<string, string>() { { "parcelId", parcelId } };
+
             // All cells have this tag, so get all of them
             var cells = _driver.FindElements(By.ClassName("w3-cell"));
-
-            Dictionary<string, string> results = new Dictionary<string, string>() { { "parcelId", parcelId } };
 
             // Loop through cells
             for (int i = 0; i < cells.Count; i++)
@@ -116,6 +116,19 @@ namespace Devnet_P11.Scraper
                         break;
                     case "Property City & Zip: ":
                         results.Add("city", cells[i + 1].Text);
+                        break;
+                }
+            }
+
+            // All cells have this tag, so get all of them
+            var taxCells = _driver.FindElements(By.ClassName("w3-centered"));
+
+            for (int i = 0; i < taxCells.Count; i++)
+            {
+                switch (taxCells[i].Text)
+                {
+                    case var s when s.StartsWith("Preliminary Just Value"):
+                        results.Add("justVal", cells[i + 1].Text);
                         break;
                 }
             }

@@ -252,7 +252,7 @@ public partial class MainPage
 
                 Dictionary<string, System.Drawing.Point> textToAdd = new()
                 {
-                    { data["owner"], new System.Drawing.Point(250, 707) },
+                    { data["owner"]+","+data["city"], new System.Drawing.Point(250, 707) },
                     { data["address"], new System.Drawing.Point(130, 660) },
                     { data["section"], new System.Drawing.Point(97, 591) },
                     { data["township"], new System.Drawing.Point(142, 591) },
