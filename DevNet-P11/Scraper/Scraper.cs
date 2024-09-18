@@ -92,7 +92,7 @@ namespace Devnet_P11.Scraper
             // All cells have this tag, so get all of them
             var cells = _driver.FindElements(By.ClassName("w3-cell"));
 
-            Dictionary<string, string> results = new Dictionary<string, string>();
+            Dictionary<string, string> results = new Dictionary<string, string>() { { "parcelId", parcelId } };
 
             // Loop through cells
             for (int i = 0; i < cells.Count; i++)

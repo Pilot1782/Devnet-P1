@@ -186,24 +186,18 @@ public partial class MainPage
             foundSpaces.Add(i);
         }
 
-        Debug.WriteLine(input.Length);
         try
         {
             for (int i = 0; i < numStrings; i++)
             {
                 int startingSpace = GetClosestInt(foundSpaces, i * maxLength);
-                Debug.WriteLine(startingSpace);
                 if (i == numStrings - 1)
                 {
-                    Debug.WriteLine("B1");
                     result[i] = input.Substring(startingSpace);
                 }
                 else
                 {
                     int endingSpace = GetClosestInt(foundSpaces, (i * maxLength) + 80);
-                    Debug.WriteLine(endingSpace);
-                    Debug.WriteLine(input.Length);
-                    Debug.WriteLine("B2");
                     result[i] = input.Substring(startingSpace, endingSpace - startingSpace);
                 }
             }
@@ -254,11 +248,17 @@ public partial class MainPage
                     outputPdf = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "/output.pdf";
                 }
 
-                var legalOutput = SplitStringByLength(data["legal"], 80);
+                var legalOutput = SplitStringByLength(data["legal"], 90);
 
                 Dictionary<string, System.Drawing.Point> textToAdd = new()
                 {
-                    { data["address"], new System.Drawing.Point(120, 660) }
+                    { data["owner"], new System.Drawing.Point(250, 707) },
+                    { data["address"], new System.Drawing.Point(130, 660) },
+                    { data["section"], new System.Drawing.Point(97, 591) },
+                    { data["township"], new System.Drawing.Point(142, 591) },
+                    { data["range"], new System.Drawing.Point(187, 591) },
+                    { "CHARLOTTE", new System.Drawing.Point(232, 591) },
+                    { data["parcelId"], new System.Drawing.Point(480, 591) }
                 };
 
                 for (int i = 0; i < legalOutput.Length; i++)
@@ -268,6 +268,8 @@ public partial class MainPage
                         new System.Drawing.Point(158, 648 - (i * 11))
                     );
                 }
+
+                Debug.WriteLine("Initialized");
 
                 await AddTextToPdf(
                     "input.pdf",
