@@ -8,17 +8,14 @@ using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas;
 using iText.Layout;
 using static Microsoft.Maui.Storage.FileSystem;
-using System.Threading.Tasks;
-using System.Threading;
-using Windows.Storage.Pickers;
-using System.Text;
 using CommunityToolkit.Maui.Storage;
-using Org.BouncyCastle.Utilities;
 
 namespace DevNet_P11;
 
 public partial class MainPage
 {
+    private readonly bool _isDebug;
+
     public MainPage()
     {
         InitializeComponent();
@@ -26,6 +23,7 @@ public partial class MainPage
 #if DEBUG
         DebugLabel.IsVisible = true;
         AddressInput.Text = "18500 Murdock Circle";
+        _isDebug = true;
 #endif
     }
 
@@ -78,7 +76,8 @@ public partial class MainPage
         return keyData;
     }
 
-    private async Task AddTextToPdf(string inputPdfPath, string outputPdfPath, Dictionary<String, System.Drawing.Point> textToAdd)
+    private async Task AddTextToPdf(string inputPdfPath, string outputPdfPath,
+        Dictionary<String, System.Drawing.Point> textToAdd)
     {
         //create PdfReader object to read from the existing document
         Debug.WriteLine(
@@ -96,7 +95,7 @@ public partial class MainPage
         try
         {
             var stream = await OpenAppPackageFileAsync("input.pdf");
-            var reader2 = new StreamReader(stream);
+            _ = new StreamReader(stream);
         }
         catch (Exception e)
         {
@@ -124,6 +123,8 @@ public partial class MainPage
             );
 
             pdfDoc = new PdfDocument(reader, writer);
+
+            await MainThread.InvokeOnMainThreadAsync(() => { DebugLabel.Text += "\nOpened PDF."; });
         }
         catch (Exception e)
         {
@@ -146,15 +147,17 @@ public partial class MainPage
         foreach (var textItem in textToAdd)
         {
             canvas.BeginText()
-            .MoveText(textItem.Value.X, textItem.Value.Y)
-            .ShowText(textItem.Key)
-            .EndText();
+                .MoveText(textItem.Value.X, textItem.Value.Y)
+                .ShowText(textItem.Key)
+                .EndText();
+
+            await MainThread.InvokeOnMainThreadAsync(() => { DebugLabel.Text += "\nAdded: " + textItem.Key; });
         }
 
         doc.Close();
     }
 
-    private int GetClosestInt(List<int> input, int target)
+    private static int GetClosestInt(List<int> input, int target)
     {
         int res = input[0];
         int diff = Math.Abs(input[0] - target);
@@ -167,12 +170,14 @@ public partial class MainPage
                 diff = thisDiff;
             }
         }
+
         return res;
     }
+
     // Multi-line splitting
-    private string[] SplitStringByLength(string input, int maxLength)
+    private static string[] SplitStringByLength(string input, int maxLength)
     {
-        int numStrings = (int) Math.Ceiling((double) input.Length / maxLength);
+        int numStrings = (int)Math.Ceiling((double)input.Length / maxLength);
         string[] result = new string[numStrings];
 
         var foundSpaces = new List<int>();
@@ -182,25 +187,31 @@ public partial class MainPage
         }
 
         Debug.WriteLine(input.Length);
-        try { 
-        for (int i = 0; i < numStrings; i++)
+        try
         {
-            int startingSpace = GetClosestInt(foundSpaces, i * maxLength);
-            Debug.WriteLine(startingSpace);
-            if (i == numStrings - 1)
+            for (int i = 0; i < numStrings; i++)
             {
-                Debug.WriteLine("B1");
-                result[i] = input.Substring(startingSpace);
-            } else
-            {
-                int endingSpace = GetClosestInt(foundSpaces, (i * maxLength) + 80);
-                Debug.WriteLine(endingSpace);
-                Debug.WriteLine(input.Length);
-                Debug.WriteLine("B2");
-                result[i] = input.Substring(startingSpace, endingSpace - startingSpace);
+                int startingSpace = GetClosestInt(foundSpaces, i * maxLength);
+                Debug.WriteLine(startingSpace);
+                if (i == numStrings - 1)
+                {
+                    Debug.WriteLine("B1");
+                    result[i] = input.Substring(startingSpace);
+                }
+                else
+                {
+                    int endingSpace = GetClosestInt(foundSpaces, (i * maxLength) + 80);
+                    Debug.WriteLine(endingSpace);
+                    Debug.WriteLine(input.Length);
+                    Debug.WriteLine("B2");
+                    result[i] = input.Substring(startingSpace, endingSpace - startingSpace);
+                }
             }
         }
-        }catch (Exception e) { Debug.WriteLine(e.ToString()); }
+        catch (Exception e)
+        {
+            Debug.WriteLine(e.ToString());
+        }
 
         return result;
     }
@@ -214,33 +225,41 @@ public partial class MainPage
             Task.Run(async () =>
             {
                 Dictionary<string, string>? data = await RunScraper(AddressInput.Text);
-                if (data == null) { return; }
+                if (data == null) return;
 
-                String outputPdf = "";
+                string outputPdf;
 
-                var fileSaverResult = await FileSaver.Default.SaveAsync("OutputContract.pdf", await OpenAppPackageFileAsync("input.pdf"));
-                if (fileSaverResult.IsSuccessful)
+                if (!_isDebug)
                 {
-                    outputPdf = fileSaverResult.FilePath;
-                    Debug.WriteLine("Success");
+                    var fileSaverResult = await FileSaver.Default.SaveAsync("OutputContract.pdf",
+                        await OpenAppPackageFileAsync("input.pdf"));
+                    if (fileSaverResult.IsSuccessful)
+                    {
+                        outputPdf = fileSaverResult.FilePath;
+                        Debug.WriteLine("Success");
+                    }
+                    else
+                    {
+                        Debug.WriteLine("Output PDF selection failed: " + fileSaverResult.Exception);
+                        await MainThread.InvokeOnMainThreadAsync(() =>
+                        {
+                            DebugLabel.Text += "\nOutput PDF selection failed: " + fileSaverResult.Exception;
+                            DebugLabel.Text += "\nOutput PDF not selected.";
+                        });
+                        return;
+                    }
                 }
                 else
                 {
-                    Debug.WriteLine("Output PDF selection failed: " + fileSaverResult.Exception);
-                    await MainThread.InvokeOnMainThreadAsync(() =>
-                    {
-                        DebugLabel.Text += "\nOutput PDF selection failed: " + fileSaverResult.Exception;
-                    });
-                    return;
+                    outputPdf = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "/output.pdf";
                 }
 
-                string[] legalOutput = SplitStringByLength(data["legal"], 80);
+                var legalOutput = SplitStringByLength(data["legal"], 80);
 
-                Dictionary<String, System.Drawing.Point> textToAdd = new();
-                textToAdd.Add(
-                    data["address"], 
-                    new System.Drawing.Point(120, 660)
-                );
+                Dictionary<string, System.Drawing.Point> textToAdd = new()
+                {
+                    { data["address"], new System.Drawing.Point(120, 660) }
+                };
 
                 for (int i = 0; i < legalOutput.Length; i++)
                 {
@@ -255,6 +274,8 @@ public partial class MainPage
                     outputPdf,
                     textToAdd
                 );
+
+                await MainThread.InvokeOnMainThreadAsync(() => { DebugLabel.Text += "\nDone!"; });
             });
         }
         else
