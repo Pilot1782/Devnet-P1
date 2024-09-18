@@ -26,12 +26,12 @@
                 x:Name="LegalLabel"
                 Text="Legal Description: " />
 
-            <Entry
+            <Editor
                 x:Name="AddressInput"
+                IsReadOnly="False"
             />
 
             <Button
-                x:Name="RunBtn"
                 Text="Click to Run"
                 SemanticProperties.Hint="Retrieves Address Data"
                 Clicked="OnRunClicked"

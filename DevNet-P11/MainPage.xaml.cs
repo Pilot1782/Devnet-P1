@@ -22,62 +22,81 @@ public partial class MainPage
 
 #if DEBUG
         DebugLabel.IsVisible = true;
-        AddressInput.Text = "18500 Murdock Circle";
+        AddressInput.Text = "18500 Murdock Circle\n18401 Murdock Circle";
         _isDebug = true;
 #endif
     }
 
-    private async Task<Dictionary<string, string>?> RunScraper(string addr)
+    private async Task<Dictionary<string, Dictionary<string, string>?>> RunScraper(string addr)
+    {
+        if (!addr.Contains('\n'))
+            return await RunScraper([addr]);
+        var addrs = addr.Split("\n");
+        return await RunScraper(addrs);
+    }
+
+    private async Task<Dictionary<string, Dictionary<string, string>?>> RunScraper(string[] addrs)
     {
         var scrap = new Scraper();
+        var outData = new Dictionary<string, Dictionary<string, string>?>();
 
-        await MainThread.InvokeOnMainThreadAsync(() =>
-        {
-            ProgressLabel.Progress = 0.33;
-            DebugLabel.Text += "\nStarting scraping...";
-        });
-        Debug.WriteLine("Starting scraping...");
-
-        var pid = scrap.GetPiD(addr);
-
-        if (pid != "notfound")
-        {
-            Debug.WriteLine("Got ParcelID, getting data...");
-            await MainThread.InvokeOnMainThreadAsync(() => { DebugLabel.Text += "\nGot ParcelID, getting data..."; });
-        }
-        else
+        foreach (var addr in addrs)
         {
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                ErrorLabel.Text = "Address not found.";
-                DebugLabel.Text += "\nFailed to locate property with address: " + addr;
+                ProgressLabel.Progress = 0.33;
+                DebugLabel.Text += "\nStarting scraping of " + addr;
             });
-            Debug.WriteLine("Failed to locate property with address: " + addr);
-            return null;
+            Debug.WriteLine("Starting scraping of " + addr);
+
+            var pid = scrap.GetPiD(addr);
+
+            if (pid != "notfound")
+            {
+                Debug.WriteLine("Got ParcelID, getting data...");
+                await MainThread.InvokeOnMainThreadAsync(
+                    () => { DebugLabel.Text += "\nGot ParcelID, getting data..."; });
+            }
+            else
+            {
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    ErrorLabel.Text = "Address not found.";
+                    DebugLabel.Text += "\nFailed to locate property with address: " + addr;
+                });
+                Debug.WriteLine("Failed to locate property with address: " + addr);
+                outData.Add(addr, null);
+                continue;
+            }
+
+            await MainThread.InvokeOnMainThreadAsync(() => { ProgressLabel.Progress = 0.66; });
+
+            var keyData = scrap.GetKeyData(pid);
+            Debug.WriteLine(JsonConvert.SerializeObject(keyData));
+
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                ProgressLabel.Progress = 1;
+                DebugLabel.Text += "\nData retrieved.";
+
+                OwnerLabel.Text = $"Owner: {keyData["owner"]}";
+                AddressLabel.Text = $"Address: {keyData["address"]}, {keyData["city"]}";
+                StrLabel.Text =
+                    $"Section: {keyData["section"]}, Township: {keyData["township"]}, Range: {keyData["range"]}";
+                LegalLabel.Text = $"Legal Description: {keyData["legal"]}";
+            });
+
+            outData.Add(addr, keyData);
         }
 
-        await MainThread.InvokeOnMainThreadAsync(() => { ProgressLabel.Progress = 0.66; });
-
-        var keyData = scrap.GetKeyData(pid);
-        Debug.WriteLine(JsonConvert.SerializeObject(keyData));
-
-        await MainThread.InvokeOnMainThreadAsync(() =>
-        {
-            ProgressLabel.Progress = 1;
-            DebugLabel.Text += "\nData retrieved.";
-
-            OwnerLabel.Text = $"Owner: {keyData["owner"]}";
-            AddressLabel.Text = $"Address: {keyData["address"]}, {keyData["city"]}";
-            StrLabel.Text =
-                $"Section: {keyData["section"]}, Township: {keyData["township"]}, Range: {keyData["range"]}";
-            LegalLabel.Text = $"Legal Description: {keyData["legal"]}";
-        });
-
-        return keyData;
+        return outData;
     }
 
-    private async Task AddTextToPdf(string inputPdfPath, string outputPdfPath,
-        Dictionary<String, System.Drawing.Point> textToAdd)
+    private async Task AddTextToPdf(
+        string inputPdfPath,
+        string outputPdfPath,
+        Dictionary<String, System.Drawing.Point> textToAdd
+    )
     {
         //create PdfReader object to read from the existing document
         Debug.WriteLine(
@@ -212,72 +231,137 @@ public partial class MainPage
 
     private void OnRunClicked(object sender, EventArgs e)
     {
+        // ensure that text is present
         if (AddressInput.Text != "")
         {
+            // show the progress bar and reset it
             ProgressLabel.IsVisible = true;
             ProgressLabel.Progress = 0;
+
             Task.Run(async () =>
             {
-                Dictionary<string, string>? data = await RunScraper(AddressInput.Text);
-                if (data == null) return;
-
-                string outputPdf;
-
-                if (!_isDebug)
+                await MainThread.InvokeOnMainThreadAsync(() =>
                 {
-                    var fileSaverResult = await FileSaver.Default.SaveAsync("OutputContract.pdf",
-                        await OpenAppPackageFileAsync("input.pdf"));
-                    if (fileSaverResult.IsSuccessful)
+                    AddressInput.IsReadOnly = true;
+                });
+
+                // run the scraper
+                var dataDictionary = await RunScraper(AddressInput.Text);
+
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    DebugLabel.Text += "\nAdding data to PDF...";
+                });
+
+                // iterate over each address and add the data to the PDF
+                foreach (var addr in dataDictionary.Keys)
+                {
+                    try
                     {
-                        outputPdf = fileSaverResult.FilePath;
-                        Debug.WriteLine("Success");
-                    }
-                    else
-                    {
-                        Debug.WriteLine("Output PDF selection failed: " + fileSaverResult.Exception);
+                        string outputPdf;
+                        var data = dataDictionary[addr];
+                        if (data == null)
+                        {
+                            await MainThread.InvokeOnMainThreadAsync(() =>
+                            {
+                                DebugLabel.Text += "\nNo data found for address: " + addr;
+                            });
+                            continue;
+                        }
+
+                        // bypass the file picker if compiled in debug mode
+                        if (!_isDebug)
+                        {
+                            var fileSaverResult = await FileSaver.Default.SaveAsync("OutputContract.pdf",
+                                await OpenAppPackageFileAsync("input.pdf"));
+                            if (fileSaverResult.IsSuccessful)
+                            {
+                                outputPdf = fileSaverResult.FilePath;
+                                Debug.WriteLine("Success");
+                            }
+                            else
+                            {
+                                Debug.WriteLine("Output PDF selection failed: " + fileSaverResult.Exception);
+                                await MainThread.InvokeOnMainThreadAsync(() =>
+                                {
+                                    DebugLabel.Text += "\nOutput PDF selection failed: " + fileSaverResult.Exception;
+                                    DebugLabel.Text += "\nOutput PDF not selected.";
+                                });
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            // check if the folder %userprofile%/PlotOuts exists
+                            if (
+                                !Directory.Exists(
+                                    Environment.GetFolderPath(
+                                        Environment.SpecialFolder.UserProfile)
+                                    + @"\Downloads\PlotOuts"
+                                )
+                            )
+                            {
+                                Directory.CreateDirectory(
+                                    Environment.GetFolderPath(
+                                        Environment.SpecialFolder.UserProfile)
+                                    + @"\Downloads\PlotOuts"
+                                );
+                            }
+
+                            outputPdf = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+                                        + @"\Downloads\PlotOuts\"
+                                        + data["address"].Replace(' ', '_') + ".pdf";
+                        }
+
+                        var legalOutput = SplitStringByLength(data["legal"], 90);
+
+                        Dictionary<string, System.Drawing.Point> textToAdd = new()
+                        {
+                            { data["owner"] + "," + data["city"], new System.Drawing.Point(250, 707) },
+                            { data["address"], new System.Drawing.Point(130, 660) },
+                            { data["section"], new System.Drawing.Point(97, 591) },
+                            { data["township"], new System.Drawing.Point(142, 591) },
+                            { data["range"], new System.Drawing.Point(187, 591) },
+                            { "CHARLOTTE", new System.Drawing.Point(232, 591) },
+                            { data["parcelId"], new System.Drawing.Point(480, 591) }
+                        };
+
+                        // add the legal output with line breaking
+                        for (var i = 0; i < legalOutput.Length; i++)
+                        {
+                            textToAdd.Add(
+                                legalOutput[i],
+                                new System.Drawing.Point(158, 648 - (i * 11))
+                            );
+                        }
+
+                        Debug.WriteLine("Initialized");
                         await MainThread.InvokeOnMainThreadAsync(() =>
                         {
-                            DebugLabel.Text += "\nOutput PDF selection failed: " + fileSaverResult.Exception;
-                            DebugLabel.Text += "\nOutput PDF not selected.";
+                            DebugLabel.Text += "\nAdding text to PDF: " + addr;
                         });
-                        return;
+
+                        await AddTextToPdf(
+                            "input.pdf",
+                            outputPdf,
+                            textToAdd
+                        );
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine(ex + "\nFailed to add Address to PDF: " + addr);
+                        await MainThread.InvokeOnMainThreadAsync(() =>
+                        {
+                            DebugLabel.Text += "\nFailed to add address to PDF: " + addr;
+                        });
                     }
                 }
-                else
+
+                await MainThread.InvokeOnMainThreadAsync(() =>
                 {
-                    outputPdf = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + "/output.pdf";
-                }
-
-                var legalOutput = SplitStringByLength(data["legal"], 90);
-
-                Dictionary<string, System.Drawing.Point> textToAdd = new()
-                {
-                    { data["owner"]+","+data["city"], new System.Drawing.Point(250, 707) },
-                    { data["address"], new System.Drawing.Point(130, 660) },
-                    { data["section"], new System.Drawing.Point(97, 591) },
-                    { data["township"], new System.Drawing.Point(142, 591) },
-                    { data["range"], new System.Drawing.Point(187, 591) },
-                    { "CHARLOTTE", new System.Drawing.Point(232, 591) },
-                    { data["parcelId"], new System.Drawing.Point(480, 591) }
-                };
-
-                for (int i = 0; i < legalOutput.Length; i++)
-                {
-                    textToAdd.Add(
-                        legalOutput[i],
-                        new System.Drawing.Point(158, 648 - (i * 11))
-                    );
-                }
-
-                Debug.WriteLine("Initialized");
-
-                await AddTextToPdf(
-                    "input.pdf",
-                    outputPdf,
-                    textToAdd
-                );
-
-                await MainThread.InvokeOnMainThreadAsync(() => { DebugLabel.Text += "\nDone!"; });
+                    DebugLabel.Text += "\nDone!";
+                    AddressInput.IsReadOnly = false;
+                });
             });
         }
         else
