@@ -9,6 +9,7 @@ using iText.Kernel.Pdf.Canvas;
 using iText.Layout;
 using static Microsoft.Maui.Storage.FileSystem;
 using CommunityToolkit.Maui.Storage;
+using iText.Bouncycastle.Crypto;
 
 namespace DevNet_P11;
 
@@ -91,7 +92,7 @@ public partial class MainPage
 
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                ((Label)_uiObjects[i]["addr"]).Text = keyData["address"];
+                ((Label)_uiObjects[i]["addr"]).Text = $"<strong>{keyData["address"]}</strong>";
             });
 
             Debug.WriteLine(JsonConvert.SerializeObject(keyData));
@@ -151,12 +152,14 @@ public partial class MainPage
                 }
 
                 var legalOutput = SplitStringByLength(keyData["legal"], 90);
-                var city = keyData["city"].Split(" ");
+                var lastCitySpace = keyData["city"].LastIndexOf(" ");
+                var city = keyData["city"].Substring(0, lastCitySpace);
+                var zip = keyData["city"].Substring(lastCitySpace + 1);
 
                 Dictionary<string, System.Drawing.Point> textToAdd = new()
                 {
                     { keyData["owner"], new System.Drawing.Point(250, 707) },
-                    { keyData["address"] + ", " + city[0] + ", FL " + city[1], new System.Drawing.Point(130, 660) },
+                    { keyData["address"] + ", " + city + ", FL " + zip, new System.Drawing.Point(130, 660) },
                     { keyData["section"], new System.Drawing.Point(97, 591) },
                     { keyData["township"], new System.Drawing.Point(142, 591) },
                     { keyData["range"], new System.Drawing.Point(187, 591) },
@@ -185,6 +188,12 @@ public partial class MainPage
                     textToAdd,
                     i
                 );
+
+
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    ((Label)_uiObjects[i]["debug"]).Text = "Done!";
+                });
             }
             catch (Exception ex)
             {
@@ -280,6 +289,16 @@ public partial class MainPage
         }
 
         doc.Close();
+
+        await MainThread.InvokeOnMainThreadAsync(() =>
+        {
+            ((Button)_uiObjects[i]["open"]).Clicked += (s, e) =>
+            {
+                Launcher.Default.OpenAsync(outputPdfPath);
+            };
+
+            ((Button)_uiObjects[i]["open"]).IsVisible = true;
+        });
     }
 
 
@@ -359,7 +378,8 @@ public partial class MainPage
             Dictionary<string, IView> dic = new Dictionary<string, IView>();
             dic["addr"] = new Label
             {
-                Text = "Fetching Actual Address..."
+                Text = $"<strong>{addrList[i]} (Not Verified) </strong>",
+                TextType = TextType.Html
             };
             ThisStackLayout.Children.Add(dic["addr"]);
 
@@ -374,6 +394,14 @@ public partial class MainPage
                 Text = "Starting..."
             };
             ThisStackLayout.Children.Add(dic["debug"]);
+
+            dic["open"] = new Button
+            {
+                Text = "Open PDF",
+                IsVisible = false,
+                WidthRequest = 300
+            };
+            ThisStackLayout.Children.Add(dic["open"]);
 
             _uiObjects.Add(dic);
         }
