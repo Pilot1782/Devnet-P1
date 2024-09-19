@@ -1,7 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             x:Class="DevNet_P11.MainPage">
+             x:Class="DevNet_P11.MainPage"
+             Shell.NavBarIsVisible="False">
 
     <ScrollView>
         <VerticalStackLayout
@@ -10,7 +11,7 @@
             Spacing="25">
 
             <Label
-                Text="Basic Address Searching!"
+                Text="Basic Address Searching"
                 Style="{StaticResource Headline}"
                 SemanticProperties.HeadingLevel="Level1" />
 
