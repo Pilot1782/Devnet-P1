@@ -317,11 +317,12 @@ public partial class MainPage
                         }
 
                         var legalOutput = SplitStringByLength(data["legal"], 90);
+                        string[] splitCity = data["city"].Split(" ");
 
                         Dictionary<string, System.Drawing.Point> textToAdd = new()
                         {
                             { data["owner"], new System.Drawing.Point(250, 707) },
-                            { data["address"] + ", " + data["city"], new System.Drawing.Point(130, 660) },
+                            { data["address"] + ", " + splitCity[0] + ", FL " + splitCity[1], new System.Drawing.Point(130, 660) },
                             { data["section"], new System.Drawing.Point(97, 591) },
                             { data["township"], new System.Drawing.Point(142, 591) },
                             { data["range"], new System.Drawing.Point(187, 591) },
