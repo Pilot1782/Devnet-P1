@@ -96,7 +96,7 @@ namespace Devnet_P11.Scraper
         public Dictionary<string, string> GetKeyData(string parcelId)
         {
             _driver.Navigate().GoToUrl("https://www.ccappraiser.com/Show_parcel.asp?acct=" + parcelId +
-                                       "&gen=T&tax=T&bld=F&oth=F&sal=F&lnd=F&leg=T");
+                                                  "&gen=T&tax=T&bld=F&oth=F&sal=F&lnd=F&leg=T");
 
             // Wait for the first container to load
             _wait.Until(
@@ -106,7 +106,7 @@ namespace Devnet_P11.Scraper
             );
             Debug.WriteLine("Container loaded for parcel " + parcelId);
 
-            Dictionary<string, string> results = new Dictionary<string, string> { { "parcelId", parcelId } };
+            var results = new Dictionary<string, string> { { "parcelId", parcelId } };
 
             // All cells have this tag, so get all of them
             var cells = _driver.FindElements(By.ClassName("w3-cell"));

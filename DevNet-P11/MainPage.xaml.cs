@@ -15,13 +15,13 @@ namespace DevNet_P11;
 public partial class MainPage
 {
     private readonly bool _isDebug;
-    private Scraper scrap;
+    private readonly Scraper _scraper;
 
     public MainPage()
     {
         InitializeComponent();
 
-        scrap = new Scraper();
+        _scraper = new Scraper();
 
 #if DEBUG
         DebugLabel.IsVisible = true;
@@ -30,19 +30,13 @@ public partial class MainPage
 #endif
     }
 
-    private async Task<Dictionary<string, Dictionary<string, string>?>> RunScraper(string addr)
+    private async Task<List<string>> GetPidList(string addrs)
     {
-        if (!addr.Contains('\n'))
-            return await RunScraper([addr]);
-        var addrs = addr.Split("\n");
-        return await RunScraper(addrs);
-    }
+        var outData = new List<string>();
 
-    private async Task<Dictionary<string, Dictionary<string, string>?>> RunScraper(string[] addrs)
-    {
-        var outData = new Dictionary<string, Dictionary<string, string>?>();
+        var addrList = addrs.Split("\n");
 
-        foreach (var addr in addrs)
+        foreach (var addr in addrList)
         {
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
@@ -51,13 +45,16 @@ public partial class MainPage
             });
             Debug.WriteLine("Starting scraping of " + addr);
 
-            var pid = scrap.GetPiD(addr);
+            var pid = _scraper.GetPiD(addr);
 
             if (pid != "notfound")
             {
-                Debug.WriteLine("Got ParcelID, getting data...");
+                Debug.WriteLine("Got ParcelID for " + addr + ": " + pid);
                 await MainThread.InvokeOnMainThreadAsync(
-                    () => { DebugLabel.Text += "\nGot ParcelID, getting data..."; });
+                    () => { DebugLabel.Text += "\nGot ParcelID for " + addr + ": " + pid; }
+                );
+
+                outData.Add(pid);
             }
             else
             {
@@ -66,39 +63,120 @@ public partial class MainPage
                     DebugLabel.Text += "\nFailed to locate property with address: " + addr;
                 });
                 Debug.WriteLine("Failed to locate property with address: " + addr);
-                outData.Add(addr, null);
-                continue;
             }
-
-            await MainThread.InvokeOnMainThreadAsync(() => { ProgressLabel.Progress = 0.66; });
-
-            var keyData = scrap.GetKeyData(pid);
-            Debug.WriteLine(JsonConvert.SerializeObject(keyData));
-
-            await MainThread.InvokeOnMainThreadAsync(() =>
-            {
-                ProgressLabel.Progress = 1;
-                DebugLabel.Text += "\nData retrieved.";
-
-                /*
-                OwnerLabel.Text = $"Owner: {keyData["owner"]}";
-                AddressLabel.Text = $"Address: {keyData["address"]}, {keyData["city"]}";
-                StrLabel.Text =
-                    $"Section: {keyData["section"]}, Township: {keyData["township"]}, Range: {keyData["range"]}";
-                LegalLabel.Text = $"Legal Description: {keyData["legal"]}";
-                */
-            });
-
-            outData.Add(addr, keyData);
         }
 
         return outData;
     }
 
+    private async Task PlotParsing(string pid)
+    {
+        var keyData = _scraper.GetKeyData(pid);
+        Debug.WriteLine(JsonConvert.SerializeObject(keyData));
+
+        await MainThread.InvokeOnMainThreadAsync(() =>
+        {
+            ProgressLabel.Progress = 1;
+            DebugLabel.Text += "\nData retrieved.";
+        });
+
+        try
+        {
+            string outputPdf;
+
+            // bypass the file picker if compiled in debug mode
+            if (!_isDebug)
+            {
+                var fileSaverResult = await FileSaver.Default.SaveAsync("OutputContract.pdf",
+                    await OpenAppPackageFileAsync("input.pdf"));
+                if (fileSaverResult.IsSuccessful)
+                {
+                    outputPdf = fileSaverResult.FilePath;
+                    Debug.WriteLine("Success");
+                }
+                else
+                {
+                    Debug.WriteLine("Output PDF selection failed: " + fileSaverResult.Exception);
+                    await MainThread.InvokeOnMainThreadAsync(() =>
+                    {
+                        DebugLabel.Text += "\nOutput PDF selection failed: " + fileSaverResult.Exception;
+                        DebugLabel.Text += "\nOutput PDF not selected.";
+                    });
+                    return;
+                }
+            }
+            else
+            {
+                // check if the folder %userprofile%/PlotOuts exists
+                if (
+                    !Directory.Exists(
+                        Environment.GetFolderPath(
+                            Environment.SpecialFolder.UserProfile)
+                        + @"\Downloads\PlotOuts"
+                    )
+                )
+                {
+                    Directory.CreateDirectory(
+                        Environment.GetFolderPath(
+                            Environment.SpecialFolder.UserProfile)
+                        + @"\Downloads\PlotOuts"
+                    );
+                }
+
+                outputPdf = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+                            + @"\Downloads\PlotOuts\"
+                            + keyData["address"].Replace(' ', '_') + ".pdf";
+            }
+
+            var legalOutput = SplitStringByLength(keyData["legal"], 90);
+            var city = keyData["city"].Split(" ");
+
+            Dictionary<string, System.Drawing.Point> textToAdd = new()
+            {
+                { keyData["owner"], new System.Drawing.Point(250, 707) },
+                { keyData["address"] + ", " + city[0] + ", FL " + city[1], new System.Drawing.Point(130, 660) },
+                { keyData["section"], new System.Drawing.Point(97, 591) },
+                { keyData["township"], new System.Drawing.Point(142, 591) },
+                { keyData["range"], new System.Drawing.Point(187, 591) },
+                { "CHARLOTTE", new System.Drawing.Point(232, 591) },
+                { keyData["parcelId"], new System.Drawing.Point(480, 591) }
+            };
+
+            // add the legal output with line breaking
+            for (var i = 0; i < legalOutput.Length; i++)
+            {
+                textToAdd.Add(
+                    legalOutput[i],
+                    new System.Drawing.Point(158, 648 - (i * 11))
+                );
+            }
+
+            Debug.WriteLine("Initialized");
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                DebugLabel.Text += "\nAdding text to PDF: " + keyData["address"];
+            });
+
+            await AddTextToPdf(
+                "input.pdf",
+                outputPdf,
+                textToAdd
+            );
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine(ex + "\nFailed to add Address to PDF: " + keyData["address"]);
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                DebugLabel.Text += "\nFailed to add address to PDF: " + keyData["address"];
+            });
+        }
+    }
+
     private async Task AddTextToPdf(
         string inputPdfPath,
         string outputPdfPath,
-        Dictionary<String, System.Drawing.Point> textToAdd
+        Dictionary<string, System.Drawing.Point> textToAdd
     )
     {
         //create PdfReader object to read from the existing document
@@ -179,6 +257,7 @@ public partial class MainPage
         doc.Close();
     }
 
+
     private static int GetClosestInt(List<int> input, int target)
     {
         int res = input[0];
@@ -235,138 +314,29 @@ public partial class MainPage
     private void OnRunClicked(object sender, EventArgs e)
     {
         // ensure that text is present
-        if (AddressInput.Text != "")
+        if (AddressInput.Text == "") return;
+
+        // show the progress bar and reset it
+        ProgressLabel.IsVisible = true;
+        ProgressLabel.Progress = 0;
+
+        Task.Run(async () =>
         {
-            // show the progress bar and reset it
-            ProgressLabel.IsVisible = true;
-            ProgressLabel.Progress = 0;
+            await MainThread.InvokeOnMainThreadAsync(() => { AddressInput.IsReadOnly = true; });
 
-            Task.Run(async () =>
+            // run the scraper
+            var pidList = await GetPidList(AddressInput.Text);
+
+            await MainThread.InvokeOnMainThreadAsync(() => { DebugLabel.Text += "\nAdding data to PDF..."; });
+
+            var tasks = pidList.Select(PlotParsing).ToList();
+            await Task.WhenAll(tasks);
+
+            await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                await MainThread.InvokeOnMainThreadAsync(() =>
-                {
-                    AddressInput.IsReadOnly = true;
-                });
-
-                // run the scraper
-                var dataDictionary = await RunScraper(AddressInput.Text);
-
-                await MainThread.InvokeOnMainThreadAsync(() =>
-                {
-                    DebugLabel.Text += "\nAdding data to PDF...";
-                });
-
-                // iterate over each address and add the data to the PDF
-                foreach (var addr in dataDictionary.Keys)
-                {
-                    try
-                    {
-                        string outputPdf;
-                        var data = dataDictionary[addr];
-                        if (data == null)
-                        {
-                            await MainThread.InvokeOnMainThreadAsync(() =>
-                            {
-                                DebugLabel.Text += "\nNo data found for address: " + addr;
-                            });
-                            continue;
-                        }
-
-                        // bypass the file picker if compiled in debug mode
-                        if (!_isDebug)
-                        {
-                            var fileSaverResult = await FileSaver.Default.SaveAsync("OutputContract.pdf",
-                                await OpenAppPackageFileAsync("input.pdf"));
-                            if (fileSaverResult.IsSuccessful)
-                            {
-                                outputPdf = fileSaverResult.FilePath;
-                                Debug.WriteLine("Success");
-                            }
-                            else
-                            {
-                                Debug.WriteLine("Output PDF selection failed: " + fileSaverResult.Exception);
-                                await MainThread.InvokeOnMainThreadAsync(() =>
-                                {
-                                    DebugLabel.Text += "\nOutput PDF selection failed: " + fileSaverResult.Exception;
-                                    DebugLabel.Text += "\nOutput PDF not selected.";
-                                });
-                                return;
-                            }
-                        }
-                        else
-                        {
-                            // check if the folder %userprofile%/PlotOuts exists
-                            if (
-                                !Directory.Exists(
-                                    Environment.GetFolderPath(
-                                        Environment.SpecialFolder.UserProfile)
-                                    + @"\Downloads\PlotOuts"
-                                )
-                            )
-                            {
-                                Directory.CreateDirectory(
-                                    Environment.GetFolderPath(
-                                        Environment.SpecialFolder.UserProfile)
-                                    + @"\Downloads\PlotOuts"
-                                );
-                            }
-
-                            outputPdf = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
-                                        + @"\Downloads\PlotOuts\"
-                                        + data["address"].Replace(' ', '_') + ".pdf";
-                        }
-
-                        var legalOutput = SplitStringByLength(data["legal"], 90);
-                        string[] splitCity = data["city"].Split(" ");
-
-                        Dictionary<string, System.Drawing.Point> textToAdd = new()
-                        {
-                            { data["owner"], new System.Drawing.Point(250, 707) },
-                            { data["address"] + ", " + splitCity[0] + ", FL " + splitCity[1], new System.Drawing.Point(130, 660) },
-                            { data["section"], new System.Drawing.Point(97, 591) },
-                            { data["township"], new System.Drawing.Point(142, 591) },
-                            { data["range"], new System.Drawing.Point(187, 591) },
-                            { "CHARLOTTE", new System.Drawing.Point(232, 591) },
-                            { data["parcelId"], new System.Drawing.Point(480, 591) }
-                        };
-
-                        // add the legal output with line breaking
-                        for (var i = 0; i < legalOutput.Length; i++)
-                        {
-                            textToAdd.Add(
-                                legalOutput[i],
-                                new System.Drawing.Point(158, 648 - (i * 11))
-                            );
-                        }
-
-                        Debug.WriteLine("Initialized");
-                        await MainThread.InvokeOnMainThreadAsync(() =>
-                        {
-                            DebugLabel.Text += "\nAdding text to PDF: " + addr;
-                        });
-
-                        await AddTextToPdf(
-                            "input.pdf",
-                            outputPdf,
-                            textToAdd
-                        );
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine(ex + "\nFailed to add Address to PDF: " + addr);
-                        await MainThread.InvokeOnMainThreadAsync(() =>
-                        {
-                            DebugLabel.Text += "\nFailed to add address to PDF: " + addr;
-                        });
-                    }
-                }
-
-                await MainThread.InvokeOnMainThreadAsync(() =>
-                {
-                    DebugLabel.Text += "\nDone!";
-                    AddressInput.IsReadOnly = false;
-                });
+                DebugLabel.Text += "\nDone!";
+                AddressInput.IsReadOnly = false;
             });
-        }
+        });
     }
 }
