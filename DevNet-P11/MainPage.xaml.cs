@@ -9,7 +9,6 @@ using iText.Kernel.Pdf.Canvas;
 using iText.Layout;
 using static Microsoft.Maui.Storage.FileSystem;
 using CommunityToolkit.Maui.Storage;
-using Microsoft.UI.Xaml.Controls;
 
 namespace DevNet_P11;
 
@@ -17,8 +16,9 @@ public partial class MainPage
 {
     private readonly bool _isDebug;
     private readonly Scraper _scraper;
-    private List<Dictionary<string, Microsoft.Maui.IView>> _uiObjects = new();
-    private List<string> pidList;
+    private readonly List<Dictionary<string, IView>> _uiObjects = [];
+    private List<string>? _pidList;
+    private string _lastPid = "";
 
     public MainPage()
     {
@@ -33,7 +33,7 @@ public partial class MainPage
 #endif
     }
 
-    private async Task<List<string>> GetPidList(string[] addrList)
+    private async Task<List<string>?> GetPidList(string[] addrList)
     {
         var outData = new List<string>();
 
@@ -43,18 +43,24 @@ public partial class MainPage
 
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                ((Microsoft.Maui.Controls.ProgressBar) _uiObjects[i]["progress"]).Progress = 0.33;
-                ((Microsoft.Maui.Controls.Label) _uiObjects[i]["debug"]).Text = "Starting scraping of " + addr;
+                ((ProgressBar) _uiObjects[i]["progress"]).Progress = 0.33;
+                ((Label) _uiObjects[i]["debug"]).Text = "Starting scraping of " + addr;
             });
             Debug.WriteLine("Starting scraping of " + addr);
 
             var pid = _scraper.GetPiD(addr);
+            while (pid == _lastPid)
+            {
+                await Task.Delay(100);
+                pid = _scraper.GetPiD(addr);
+            }
+            _lastPid = pid;
 
             if (pid != "notfound")
             {
                 Debug.WriteLine("Got ParcelID for " + addr + ": " + pid);
                 await MainThread.InvokeOnMainThreadAsync(
-                    () => { ((Microsoft.Maui.Controls.Label)_uiObjects[i]["debug"]).Text = "Got ParcelID for " + addr + ": " + pid; }
+                    () => { ((Label)_uiObjects[i]["debug"]).Text = "Got ParcelID for " + addr + ": " + pid; }
                 );
 
                 outData.Add(pid);
@@ -63,7 +69,7 @@ public partial class MainPage
             {
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
-                    ((Microsoft.Maui.Controls.Label)_uiObjects[i]["debug"]).Text = "Failed to locate property with address: " + addr;
+                    ((Label)_uiObjects[i]["debug"]).Text = "Failed to locate property with address: " + addr;
                 });
                 Debug.WriteLine("Failed to locate property with address: " + addr);
 
@@ -77,113 +83,117 @@ public partial class MainPage
     private async Task PlotParsing(string pid)
     {
         if (pid == "0") { return; }
-        int i = pidList.IndexOf(pid);
-        var keyData = _scraper.GetKeyData(pid);
 
-        await MainThread.InvokeOnMainThreadAsync(() =>
+        if (_pidList != null)
         {
-            ((Microsoft.Maui.Controls.Label)_uiObjects[i]["addr"]).Text = keyData["address"];
-        });
+            var i = _pidList.IndexOf(pid);
+            var keyData = _scraper.GetKeyDataAsync(pid);
 
-        Debug.WriteLine(JsonConvert.SerializeObject(keyData));
-
-        await MainThread.InvokeOnMainThreadAsync(() =>
-        {
-            ((Microsoft.Maui.Controls.ProgressBar)_uiObjects[i]["progress"]).Progress = 1;
-            ((Microsoft.Maui.Controls.Label)_uiObjects[i]["debug"]).Text = "Data retrieved.";
-        });
-
-        try
-        {
-            string outputPdf;
-
-            // bypass the file picker if compiled in debug mode
-            if (!_isDebug)
+            await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                var fileSaverResult = await FileSaver.Default.SaveAsync("OutputContract.pdf",
-                    await OpenAppPackageFileAsync("input.pdf"));
-                if (fileSaverResult.IsSuccessful)
+                ((Label)_uiObjects[i]["addr"]).Text = keyData["address"];
+            });
+
+            Debug.WriteLine(JsonConvert.SerializeObject(keyData));
+
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                ((ProgressBar)_uiObjects[i]["progress"]).Progress = 1;
+                ((Label)_uiObjects[i]["debug"]).Text = "Data retrieved.";
+            });
+
+            try
+            {
+                string outputPdf;
+
+                // bypass the file picker if compiled in debug mode
+                if (!_isDebug)
                 {
-                    outputPdf = fileSaverResult.FilePath;
-                    Debug.WriteLine("Success");
+                    var fileSaverResult = await FileSaver.Default.SaveAsync("OutputContract.pdf",
+                        await OpenAppPackageFileAsync("input.pdf"));
+                    if (fileSaverResult.IsSuccessful)
+                    {
+                        outputPdf = fileSaverResult.FilePath;
+                        Debug.WriteLine("Success");
+                    }
+                    else
+                    {
+                        Debug.WriteLine("Output PDF selection failed: " + fileSaverResult.Exception);
+                        await MainThread.InvokeOnMainThreadAsync(() =>
+                        {
+                            //((Microsoft.Maui.Controls.Label)_uiObjects[i]["debug"]).Text = "\nOutput PDF selection failed: " + fileSaverResult.Exception;
+                            ((Label)_uiObjects[i]["debug"]).Text = "Output PDF not selected.";
+                        });
+                        return;
+                    }
                 }
                 else
                 {
-                    Debug.WriteLine("Output PDF selection failed: " + fileSaverResult.Exception);
-                    await MainThread.InvokeOnMainThreadAsync(() =>
-                    {
-                        //((Microsoft.Maui.Controls.Label)_uiObjects[i]["debug"]).Text = "\nOutput PDF selection failed: " + fileSaverResult.Exception;
-                        ((Microsoft.Maui.Controls.Label)_uiObjects[i]["debug"]).Text = "Output PDF not selected.";
-                    });
-                    return;
-                }
-            }
-            else
-            {
-                // check if the folder %userprofile%/PlotOuts exists
-                if (
-                    !Directory.Exists(
-                        Environment.GetFolderPath(
-                            Environment.SpecialFolder.UserProfile)
-                        + @"\Downloads\PlotOuts"
+                    // check if the folder %userprofile%/PlotOuts exists
+                    if (
+                        !Directory.Exists(
+                            Environment.GetFolderPath(
+                                Environment.SpecialFolder.UserProfile)
+                            + @"\Downloads\PlotOuts"
+                        )
                     )
-                )
+                    {
+                        Directory.CreateDirectory(
+                            Environment.GetFolderPath(
+                                Environment.SpecialFolder.UserProfile)
+                            + @"\Downloads\PlotOuts"
+                        );
+                    }
+
+                    outputPdf = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+                                + @"\Downloads\PlotOuts\"
+                                + keyData["address"].Replace(' ', '_') + ".pdf";
+                }
+
+                var legalOutput = SplitStringByLength(keyData["legal"], 90);
+                var city = keyData["city"].Split(" ");
+
+                Dictionary<string, System.Drawing.Point> textToAdd = new()
                 {
-                    Directory.CreateDirectory(
-                        Environment.GetFolderPath(
-                            Environment.SpecialFolder.UserProfile)
-                        + @"\Downloads\PlotOuts"
+                    { keyData["owner"], new System.Drawing.Point(250, 707) },
+                    { keyData["address"] + ", " + city[0] + ", FL " + city[1], new System.Drawing.Point(130, 660) },
+                    { keyData["section"], new System.Drawing.Point(97, 591) },
+                    { keyData["township"], new System.Drawing.Point(142, 591) },
+                    { keyData["range"], new System.Drawing.Point(187, 591) },
+                    { "CHARLOTTE", new System.Drawing.Point(232, 591) },
+                    { keyData["parcelId"], new System.Drawing.Point(480, 591) }
+                };
+
+                // add the legal output with line breaking
+                for (var j = 0; j < legalOutput.Length; j++)
+                {
+                    textToAdd.Add(
+                        legalOutput[j],
+                        new System.Drawing.Point(158, 648 - (j * 11))
                     );
                 }
 
-                outputPdf = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
-                            + @"\Downloads\PlotOuts\"
-                            + keyData["address"].Replace(' ', '_') + ".pdf";
-            }
+                Debug.WriteLine("Initialized");
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    ((Label)_uiObjects[i]["debug"]).Text = "Adding text to PDF: " + keyData["address"];
+                });
 
-            var legalOutput = SplitStringByLength(keyData["legal"], 90);
-            var city = keyData["city"].Split(" ");
-
-            Dictionary<string, System.Drawing.Point> textToAdd = new()
-            {
-                { keyData["owner"], new System.Drawing.Point(250, 707) },
-                { keyData["address"] + ", " + city[0] + ", FL " + city[1], new System.Drawing.Point(130, 660) },
-                { keyData["section"], new System.Drawing.Point(97, 591) },
-                { keyData["township"], new System.Drawing.Point(142, 591) },
-                { keyData["range"], new System.Drawing.Point(187, 591) },
-                { "CHARLOTTE", new System.Drawing.Point(232, 591) },
-                { keyData["parcelId"], new System.Drawing.Point(480, 591) }
-            };
-
-            // add the legal output with line breaking
-            for (var j = 0; j < legalOutput.Length; j++)
-            {
-                textToAdd.Add(
-                    legalOutput[j],
-                    new System.Drawing.Point(158, 648 - (j * 11))
+                await AddTextToPdf(
+                    "input.pdf",
+                    outputPdf,
+                    textToAdd,
+                    i
                 );
             }
-
-            Debug.WriteLine("Initialized");
-            await MainThread.InvokeOnMainThreadAsync(() =>
+            catch (Exception ex)
             {
-                ((Microsoft.Maui.Controls.Label)_uiObjects[i]["debug"]).Text = "Adding text to PDF: " + keyData["address"];
-            });
-
-            await AddTextToPdf(
-                "input.pdf",
-                outputPdf,
-                textToAdd,
-                i
-            );
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine(ex + "\nFailed to add Address to PDF: " + keyData["address"]);
-            await MainThread.InvokeOnMainThreadAsync(() =>
-            {
-                ((Microsoft.Maui.Controls.Label)_uiObjects[i]["debug"]).Text = "Failed to add address to PDF: " + keyData["address"];
-            });
+                Debug.WriteLine(ex + "\nFailed to add Address to PDF: " + keyData["address"]);
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    ((Label)_uiObjects[i]["debug"]).Text = "Failed to add address to PDF: " + keyData["address"];
+                });
+            }
         }
     }
 
@@ -205,7 +215,7 @@ public partial class MainPage
             Assembly.GetExecutingAssembly().GetManifestResourceStream(inputPdfPath)
         );
 
-        await MainThread.InvokeOnMainThreadAsync(() => { ((Microsoft.Maui.Controls.Label)_uiObjects[i]["debug"]).Text = "Adding text to PDF..."; });
+        await MainThread.InvokeOnMainThreadAsync(() => { ((Label)_uiObjects[i]["debug"]).Text = "Adding text to PDF..."; });
 
         try
         {
@@ -216,7 +226,7 @@ public partial class MainPage
         {
             Debug.WriteLine(e.Message);
             Debug.WriteLine("Input PDF not found: " + inputPdfPath);
-            await MainThread.InvokeOnMainThreadAsync(() => { ((Microsoft.Maui.Controls.Label)_uiObjects[i]["debug"]).Text = "Input PDF not found."; });
+            await MainThread.InvokeOnMainThreadAsync(() => { ((Label)_uiObjects[i]["debug"]).Text = "Input PDF not found."; });
             return;
         }
 
@@ -239,7 +249,7 @@ public partial class MainPage
 
             pdfDoc = new PdfDocument(reader, writer);
 
-            await MainThread.InvokeOnMainThreadAsync(() => { ((Microsoft.Maui.Controls.Label)_uiObjects[i]["debug"]).Text = "Opened PDF."; });
+            await MainThread.InvokeOnMainThreadAsync(() => { ((Label)_uiObjects[i]["debug"]).Text = "Opened PDF."; });
         }
         catch (Exception e)
         {
@@ -247,7 +257,7 @@ public partial class MainPage
             Debug.WriteLine("Output PDF not found: " + outputPdfPath + "\n" + e.Message);
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                ((Microsoft.Maui.Controls.Label)_uiObjects[i]["debug"]).Text = "\nOutput PDF not found. " + e.Message;
+                ((Label)_uiObjects[i]["debug"]).Text = "\nOutput PDF not found. " + e.Message;
             });
             return;
         }
@@ -266,7 +276,7 @@ public partial class MainPage
                 .ShowText(textItem.Key)
                 .EndText();
 
-            await MainThread.InvokeOnMainThreadAsync(() => { ((Microsoft.Maui.Controls.Label)_uiObjects[i]["debug"]).Text = "Added: " + textItem.Key; });
+            await MainThread.InvokeOnMainThreadAsync(() => { ((Label)_uiObjects[i]["debug"]).Text = "Added: " + textItem.Key; });
         }
 
         doc.Close();
@@ -337,32 +347,29 @@ public partial class MainPage
 
         var addrList = AddressInput.Text.Split("\n");
 
-        foreach (var items in _uiObjects)
+        foreach (var item in _uiObjects.SelectMany(items => items.Values))
         {
-            foreach (var item in items.Values)
-            {
-                ThisStackLayout.Children.Remove(item);
-            }
+            ThisStackLayout.Children.Remove(item);
         }
         _uiObjects.Clear();
 
 
         for (int i = 0; i < addrList.Length; i++)
         {
-            Dictionary<string, Microsoft.Maui.IView> dic = new Dictionary<string, Microsoft.Maui.IView>();
-            dic["addr"] = new Microsoft.Maui.Controls.Label
+            Dictionary<string, IView> dic = new Dictionary<string, IView>();
+            dic["addr"] = new Label
             {
                 Text = "Fetching Actual Address..."
             };
             ThisStackLayout.Children.Add(dic["addr"]);
 
-            dic["progress"] = new Microsoft.Maui.Controls.ProgressBar
+            dic["progress"] = new ProgressBar
             {
                 Progress = 0
             };
             ThisStackLayout.Children.Add(dic["progress"]);
 
-            dic["debug"] = new Microsoft.Maui.Controls.Label
+            dic["debug"] = new Label
             {
                 Text = "Starting..."
             };
@@ -376,12 +383,13 @@ public partial class MainPage
             await MainThread.InvokeOnMainThreadAsync(() => { AddressInput.IsReadOnly = true; RunButton.IsEnabled = false; });
 
             // run the scraper
-            pidList = await GetPidList(addrList);
+            _pidList = await GetPidList(addrList);
 
-            //await MainThread.InvokeOnMainThreadAsync(() => { DebugLabel.Text += "\nAdding data to PDF..."; });
-
-            var tasks = pidList.Select(PlotParsing).ToList();
-            await Task.WhenAll(tasks);
+            if (_pidList != null)
+            {
+                var tasks = _pidList.Select(PlotParsing).ToList();
+                await Task.WhenAll(tasks);
+            }
 
             await MainThread.InvokeOnMainThreadAsync(() =>
             {

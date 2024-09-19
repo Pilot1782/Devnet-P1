@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using HtmlAgilityPack;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
@@ -192,6 +193,54 @@ namespace Devnet_P11.Scraper
             Debug.WriteLine("Got all data for parcel " + parcelId);
 
             return results;
+        }
+
+        public Dictionary<string, string> GetKeyDataAsync(string parcelId)
+        {
+            var results = new Dictionary<string, string> { { "parcelId", parcelId } };
+
+            var url = "https://www.ccappraiser.com/Show_parcel.asp?acct=" + parcelId +
+                       "&gen=T&tax=T&bld=F&oth=F&sal=F&lnd=F&leg=T";
+            var web = new HtmlWeb();
+            var htmlDoc = web.Load(url);
+
+            results["owner"] = FixText(htmlDoc.DocumentNode.SelectSingleNode(
+                "//h2[text()='Owner:']/../div[@class='w3-border w3-border-blue']"
+            ).InnerText, includeNewLine: true).Split("\n")[0];
+
+            var sectionTownshipRange = FixText(htmlDoc.DocumentNode.SelectSingleNode(
+                "(//div/strong[text()='Section/Township/Range:']/../../div)[2]"
+            ).InnerText).Split("-");
+            results["section"] = sectionTownshipRange[0];
+            results["township"] = sectionTownshipRange[1];
+            results["range"] = sectionTownshipRange[2];
+
+            results["legal"] = FixText(htmlDoc.DocumentNode.SelectSingleNode(
+                "//strong[text()='Long Legal:']/.."
+            ).InnerText.Replace("Long Legal:", ""));
+
+            results["address"] = FixText(htmlDoc.DocumentNode.SelectSingleNode(
+                "//h2[text()='Property Location:']/../div[1]/div[2]"
+            ).InnerText, includeNewLine: true).Split("\n")[0];
+
+            results["city"] = FixText(htmlDoc.DocumentNode.SelectSingleNode(
+                "//h2[text()='Property Location:']/../div[2]/div[2]"
+            ).InnerText);
+
+            return results;
+        }
+
+        private static string FixText(string text, bool includeNewLine = false)
+        {
+            if (!includeNewLine)
+                text = text.Replace("\n", "");
+
+            return text
+                .Replace("\r", "")
+                .Replace("\t", "")
+                .Replace("  ", "")
+                .Replace("&nbsp;", "")
+                .Trim();
         }
     }
 }
