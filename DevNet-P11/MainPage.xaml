@@ -5,6 +5,7 @@
 
     <ScrollView>
         <VerticalStackLayout
+            x:Name="ThisStackLayout"
             Padding="30,0"
             Spacing="25">
 
@@ -20,22 +21,10 @@
 
             <Button
                 Text="Click to Run"
+                x:Name="RunButton"
                 SemanticProperties.Hint="Retrieves Address Data"
                 Clicked="OnRunClicked"
                 HorizontalOptions="Fill" />
-
-            <Label
-                x:Name="StatusAddress"
-                Text="[Address]" />
-
-
-            <ProgressBar
-                x:Name="ProgressLabel"
-                Progress="0" />
-
-            <Label
-                  x:Name="DebugLabel"
-                  Text="" />
         </VerticalStackLayout>
     </ScrollView>
 
