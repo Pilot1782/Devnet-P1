@@ -32,6 +32,11 @@ namespace Devnet_P11.Scraper
             );
         }
 
+        public void Shutdown()
+        {
+            _driver.Quit();
+        }
+
         public string GetPiD(string addr)
         {
             if (_driver.Url.Contains("https://www.ccappraiser.com/"))

@@ -32,6 +32,13 @@ public partial class MainPage
         AddressInput.Text = "18500 Murdock Circle\n18401 Murdock Circle";
         _isDebug = true;
 #endif
+
+        Window.Destroying += Window_Destroying;
+    }
+
+    private void Window_Destroying(object? sender, EventArgs e)
+    {
+        _scraper.Shutdown();
     }
 
     private async Task<List<string>?> GetPidList(string[] addrList)
@@ -110,7 +117,7 @@ public partial class MainPage
                 // bypass the file picker if compiled in debug mode
                 if (!_isDebug)
                 {
-                    var fileSaverResult = await FileSaver.Default.SaveAsync("OutputContract.pdf",
+                    var fileSaverResult = await FileSaver.Default.SaveAsync(keyData["address"].Replace(' ', '_') + ".pdf",
                         await OpenAppPackageFileAsync("input.pdf"));
                     if (fileSaverResult.IsSuccessful)
                     {
