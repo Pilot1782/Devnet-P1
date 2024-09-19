@@ -15,10 +15,13 @@ namespace DevNet_P11;
 public partial class MainPage
 {
     private readonly bool _isDebug;
+    private Scraper scrap;
 
     public MainPage()
     {
         InitializeComponent();
+
+        scrap = new Scraper();
 
 #if DEBUG
         DebugLabel.IsVisible = true;
@@ -37,7 +40,6 @@ public partial class MainPage
 
     private async Task<Dictionary<string, Dictionary<string, string>?>> RunScraper(string[] addrs)
     {
-        var scrap = new Scraper();
         var outData = new Dictionary<string, Dictionary<string, string>?>();
 
         foreach (var addr in addrs)
@@ -61,7 +63,6 @@ public partial class MainPage
             {
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
-                    ErrorLabel.Text = "Address not found.";
                     DebugLabel.Text += "\nFailed to locate property with address: " + addr;
                 });
                 Debug.WriteLine("Failed to locate property with address: " + addr);
@@ -79,11 +80,13 @@ public partial class MainPage
                 ProgressLabel.Progress = 1;
                 DebugLabel.Text += "\nData retrieved.";
 
+                /*
                 OwnerLabel.Text = $"Owner: {keyData["owner"]}";
                 AddressLabel.Text = $"Address: {keyData["address"]}, {keyData["city"]}";
                 StrLabel.Text =
                     $"Section: {keyData["section"]}, Township: {keyData["township"]}, Range: {keyData["range"]}";
                 LegalLabel.Text = $"Legal Description: {keyData["legal"]}";
+                */
             });
 
             outData.Add(addr, keyData);
@@ -317,8 +320,8 @@ public partial class MainPage
 
                         Dictionary<string, System.Drawing.Point> textToAdd = new()
                         {
-                            { data["owner"] + "," + data["city"], new System.Drawing.Point(250, 707) },
-                            { data["address"], new System.Drawing.Point(130, 660) },
+                            { data["owner"], new System.Drawing.Point(250, 707) },
+                            { data["address"] + ", " + data["city"], new System.Drawing.Point(130, 660) },
                             { data["section"], new System.Drawing.Point(97, 591) },
                             { data["township"], new System.Drawing.Point(142, 591) },
                             { data["range"], new System.Drawing.Point(187, 591) },
@@ -363,10 +366,6 @@ public partial class MainPage
                     AddressInput.IsReadOnly = false;
                 });
             });
-        }
-        else
-        {
-            ErrorLabel.Text = "No address given.";
         }
     }
 }

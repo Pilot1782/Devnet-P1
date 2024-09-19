@@ -13,19 +13,6 @@
                 Style="{StaticResource Headline}"
                 SemanticProperties.HeadingLevel="Level1" />
 
-            <Label
-                x:Name="OwnerLabel"
-                Text="Owner: " />
-            <Label
-                x:Name="AddressLabel"
-                Text="Address: " />
-            <Label
-                x:Name="StrLabel"
-                Text="Section: Township: Range: " />
-            <Label
-                x:Name="LegalLabel"
-                Text="Legal Description: " />
-
             <Editor
                 x:Name="AddressInput"
                 IsReadOnly="False"
@@ -38,20 +25,17 @@
                 HorizontalOptions="Fill" />
 
             <Label
-                x:Name="ErrorLabel"
-                Text="" />
+                x:Name="StatusAddress"
+                Text="[Address]" />
+
 
             <ProgressBar
                 x:Name="ProgressLabel"
-                Progress="0"
-                IsVisible="False"
-            />
+                Progress="0" />
 
             <Label
                   x:Name="DebugLabel"
-                  Text=""
-                  IsVisible="False"
-              />
+                  Text="" />
         </VerticalStackLayout>
     </ScrollView>
 
