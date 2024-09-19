@@ -8,4 +8,16 @@ public partial class App : Application
 
         MainPage = new AppShell();
     }
+
+    protected override Window CreateWindow(IActivationState activationState)
+    {
+        Window window = base.CreateWindow(activationState);
+
+        window.Destroying += (s, e) =>
+        {
+            DevNet_P11.MainPage.scraper.Shutdown();
+        };
+
+        return window;
+    }
 }

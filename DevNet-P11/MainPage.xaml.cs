@@ -16,7 +16,7 @@ namespace DevNet_P11;
 public partial class MainPage
 {
     private readonly bool _isDebug;
-    private readonly Scraper _scraper;
+    public static readonly Scraper scraper = new Scraper();
     private readonly List<Dictionary<string, IView>> _uiObjects = [];
     private List<string>? _pidList;
     private string _lastPid = "";
@@ -25,20 +25,11 @@ public partial class MainPage
     {
         InitializeComponent();
 
-        _scraper = new Scraper();
-
 #if DEBUG
         //DebugLabel.IsVisible = true;
         AddressInput.Text = "18500 Murdock Circle\n18401 Murdock Circle";
         _isDebug = true;
 #endif
-
-        Window.Destroying += Window_Destroying;
-    }
-
-    private void Window_Destroying(object? sender, EventArgs e)
-    {
-        _scraper.Shutdown();
     }
 
     private async Task<List<string>?> GetPidList(string[] addrList)
@@ -56,11 +47,11 @@ public partial class MainPage
             });
             Debug.WriteLine("Starting scraping of " + addr);
 
-            var pid = _scraper.GetPiD(addr);
+            var pid = scraper.GetPiD(addr);
             while (pid == _lastPid)
             {
                 await Task.Delay(100);
-                pid = _scraper.GetPiD(addr);
+                pid = scraper.GetPiD(addr);
             }
             _lastPid = pid;
 
@@ -95,7 +86,7 @@ public partial class MainPage
         if (_pidList != null)
         {
             var i = _pidList.IndexOf(pid);
-            var keyData = _scraper.GetKeyDataAsync(pid);
+            var keyData = scraper.GetKeyDataAsync(pid);
 
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
