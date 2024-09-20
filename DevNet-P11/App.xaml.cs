@@ -15,7 +15,7 @@ public partial class App : Application
 
         window.Destroying += (s, e) =>
         {
-            DevNet_P11.MainPage.scraper.Shutdown();
+            DevNet_P11.MainPage.Scraper.Shutdown();
         };
 
         return window;

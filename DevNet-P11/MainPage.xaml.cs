@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Reflection;
+using System.Text;
 using Devnet_P11.Scraper;
 using iText.IO.Font.Constants;
 using iText.Kernel.Font;
@@ -9,14 +10,13 @@ using iText.Kernel.Pdf.Canvas;
 using iText.Layout;
 using static Microsoft.Maui.Storage.FileSystem;
 using CommunityToolkit.Maui.Storage;
-using iText.Bouncycastle.Crypto;
 
 namespace DevNet_P11;
 
 public partial class MainPage
 {
     private readonly bool _isDebug;
-    public static readonly Scraper scraper = new Scraper();
+    public static readonly Scraper Scraper = new();
     private readonly List<Dictionary<string, IView>> _uiObjects = [];
     private List<string>? _pidList;
     private string _lastPid = "";
@@ -36,23 +36,24 @@ public partial class MainPage
     {
         var outData = new List<string>();
 
-        for (int i = 0; i < addrList.Length; i++)
+        for (var i = 0; i < addrList.Length; i++)
         {
             var addr = addrList[i];
 
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                ((ProgressBar) _uiObjects[i]["progress"]).Progress = 0.33;
-                ((Label) _uiObjects[i]["debug"]).Text = "Starting scraping of " + addr;
+                ((ProgressBar)_uiObjects[i]["progress"]).Progress = 0.33;
+                ((Label)_uiObjects[i]["debug"]).Text = "Starting scraping of " + addr;
             });
             Debug.WriteLine("Starting scraping of " + addr);
 
-            var pid = scraper.GetPiD(addr);
+            var pid = Scraper.GetPiD(addr);
             while (pid == _lastPid)
             {
                 await Task.Delay(100);
-                pid = scraper.GetPiD(addr);
+                pid = Scraper.GetPiD(addr);
             }
+
             _lastPid = pid;
 
             if (pid != "notfound")
@@ -81,12 +82,15 @@ public partial class MainPage
 
     private async Task PlotParsing(string pid)
     {
-        if (pid == "0") { return; }
+        if (pid == "0")
+        {
+            return;
+        }
 
         if (_pidList != null)
         {
             var i = _pidList.IndexOf(pid);
-            var keyData = scraper.GetKeyDataAsync(pid);
+            var keyData = Scraper.GetKeyDataAsync(pid);
 
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
@@ -108,7 +112,8 @@ public partial class MainPage
                 // bypass the file picker if compiled in debug mode
                 if (!_isDebug)
                 {
-                    var fileSaverResult = await FileSaver.Default.SaveAsync(keyData["address"].Replace(' ', '_') + ".pdf",
+                    var fileSaverResult = await FileSaver.Default.SaveAsync(
+                        keyData["address"].Replace(' ', '_') + ".pdf",
                         await OpenAppPackageFileAsync("input.pdf"));
                     if (fileSaverResult.IsSuccessful)
                     {
@@ -150,9 +155,9 @@ public partial class MainPage
                 }
 
                 var legalOutput = SplitStringByLength(keyData["legal"], 90);
-                var lastCitySpace = keyData["city"].LastIndexOf(" ");
-                var city = keyData["city"].Substring(0, lastCitySpace);
-                var zip = keyData["city"].Substring(lastCitySpace + 1);
+                var lastCitySpace = keyData["city"].LastIndexOf(' ');
+                var city = keyData["city"][..lastCitySpace];
+                var zip = keyData["city"][(lastCitySpace + 1)..];
 
                 Dictionary<string, System.Drawing.Point> textToAdd = new()
                 {
@@ -188,10 +193,7 @@ public partial class MainPage
                 );
 
 
-                await MainThread.InvokeOnMainThreadAsync(() =>
-                {
-                    ((Label)_uiObjects[i]["debug"]).Text = "Done!";
-                });
+                await MainThread.InvokeOnMainThreadAsync(() => { ((Label)_uiObjects[i]["debug"]).Text = "Done!"; });
             }
             catch (Exception ex)
             {
@@ -222,7 +224,10 @@ public partial class MainPage
             Assembly.GetExecutingAssembly().GetManifestResourceStream(inputPdfPath)
         );
 
-        await MainThread.InvokeOnMainThreadAsync(() => { ((Label)_uiObjects[i]["debug"]).Text = "Adding text to PDF..."; });
+        await MainThread.InvokeOnMainThreadAsync(() =>
+        {
+            ((Label)_uiObjects[i]["debug"]).Text = "Adding text to PDF...";
+        });
 
         try
         {
@@ -233,7 +238,10 @@ public partial class MainPage
         {
             Debug.WriteLine(e.Message);
             Debug.WriteLine("Input PDF not found: " + inputPdfPath);
-            await MainThread.InvokeOnMainThreadAsync(() => { ((Label)_uiObjects[i]["debug"]).Text = "Input PDF not found."; });
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                ((Label)_uiObjects[i]["debug"]).Text = "Input PDF not found.";
+            });
             return;
         }
 
@@ -283,74 +291,41 @@ public partial class MainPage
                 .ShowText(textItem.Key)
                 .EndText();
 
-            await MainThread.InvokeOnMainThreadAsync(() => { ((Label)_uiObjects[i]["debug"]).Text = "Added: " + textItem.Key; });
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                ((Label)_uiObjects[i]["debug"]).Text = "Added: " + textItem.Key;
+            });
         }
 
         doc.Close();
 
         await MainThread.InvokeOnMainThreadAsync(() =>
         {
-            ((Button)_uiObjects[i]["open"]).Clicked += (s, e) =>
-            {
-                Launcher.Default.OpenAsync(outputPdfPath);
-            };
+            ((Button)_uiObjects[i]["open"]).Clicked += (_, _) => { Launcher.Default.OpenAsync(outputPdfPath); };
 
             ((Button)_uiObjects[i]["open"]).IsVisible = true;
         });
     }
 
-
-    private static int GetClosestInt(List<int> input, int target)
-    {
-        int res = input[0];
-        int diff = Math.Abs(input[0] - target);
-        foreach (int num in input)
-        {
-            int thisDiff = Math.Abs(num - target);
-            if (thisDiff < diff)
-            {
-                res = num;
-                diff = thisDiff;
-            }
-        }
-
-        return res;
-    }
-
     // Multi-line splitting
     private static string[] SplitStringByLength(string input, int maxLength)
     {
-        int numStrings = (int)Math.Ceiling((double)input.Length / maxLength);
-        string[] result = new string[numStrings];
-
-        var foundSpaces = new List<int>();
-        for (int i = input.IndexOf(' '); i > -1; i = input.IndexOf(' ', i + 1))
+        var words = input.Split(' ');
+        var lines = new List<string>();
+        var currentLine = new StringBuilder();
+        foreach (var word in words)
         {
-            foundSpaces.Add(i);
-        }
-
-        try
-        {
-            for (int i = 0; i < numStrings; i++)
+            if (currentLine.Length + word.Length >= maxLength)
             {
-                int startingSpace = GetClosestInt(foundSpaces, i * maxLength);
-                if (i == numStrings - 1)
-                {
-                    result[i] = input.Substring(startingSpace);
-                }
-                else
-                {
-                    int endingSpace = GetClosestInt(foundSpaces, (i * maxLength) + 80);
-                    result[i] = input.Substring(startingSpace, endingSpace - startingSpace);
-                }
+                lines.Add(currentLine.ToString());
+                currentLine.Clear();
             }
-        }
-        catch (Exception e)
-        {
-            Debug.WriteLine(e.ToString());
+
+            currentLine.Append(word + " ");
         }
 
-        return result;
+        lines.Add(currentLine.ToString());
+        return lines.ToArray();
     }
 
     private void OnRunClicked(object sender, EventArgs e)
@@ -368,16 +343,19 @@ public partial class MainPage
         {
             ThisStackLayout.Children.Remove(item);
         }
+
         _uiObjects.Clear();
 
 
-        for (int i = 0; i < addrList.Length; i++)
+        foreach (var addr in addrList)
         {
-            Dictionary<string, IView> dic = new Dictionary<string, IView>();
-            dic["addr"] = new Label
+            Dictionary<string, IView> dic = new Dictionary<string, IView>
             {
-                Text = $"<strong>{addrList[i]} (Not Verified) </strong>",
-                TextType = TextType.Html
+                ["addr"] = new Label
+                {
+                    Text = $"<strong>{addr} (Not Verified) </strong>",
+                    TextType = TextType.Html
+                }
             };
             ThisStackLayout.Children.Add(dic["addr"]);
 
@@ -406,7 +384,11 @@ public partial class MainPage
 
         Task.Run(async () =>
         {
-            await MainThread.InvokeOnMainThreadAsync(() => { AddressInput.IsReadOnly = true; RunButton.IsEnabled = false; });
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                AddressInput.IsReadOnly = true;
+                RunButton.IsEnabled = false;
+            });
 
             // run the scraper
             _pidList = await GetPidList(addrList);
