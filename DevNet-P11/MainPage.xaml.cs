@@ -379,6 +379,7 @@ public partial class MainPage
                             //((Microsoft.Maui.Controls.Label)_uiObjects[i]["debug"]).Text = "\nOutput PDF selection failed: " + fileSaverResult.Exception;
                             for (int i = 0; i < _pidList.Count; i++)
                             {
+                                if (_pidList[i] == "0") { continue; }
                                 ((Label)_uiObjects[i]["debug"]).Text = "Output Folder not selected.";
                             }
                         });
