@@ -18,6 +18,7 @@ namespace Devnet_P11.Scraper
 
             var chromeOptions = new ChromeOptions();
             chromeOptions.AddArguments("headless"); // Hiding chrome instance
+            chromeOptions.AddArgument("--window-position=-32000,-32000"); // HIDE IT MORE
 
             _driver = new ChromeDriver(chromeDriverService, chromeOptions);
             _wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(10));
