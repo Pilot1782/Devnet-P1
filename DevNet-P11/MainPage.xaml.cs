@@ -15,7 +15,7 @@ namespace DevNet_P11;
 
 public partial class MainPage
 {
-    private readonly bool _isDebug;
+    private readonly bool _isDebug = false;
     public static readonly Scraper Scraper = new();
     private readonly List<Dictionary<string, IView>> _uiObjects = [];
     private List<string>? _pidList;
