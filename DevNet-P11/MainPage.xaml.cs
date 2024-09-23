@@ -19,6 +19,7 @@ public partial class MainPage
     public static readonly Scraper Scraper = new();
     private readonly List<Dictionary<string, IView>> _uiObjects = [];
     private List<string>? _pidList;
+    private string _outputFolder;
 
     public MainPage()
     {
@@ -27,7 +28,7 @@ public partial class MainPage
 #if DEBUG
         //DebugLabel.IsVisible = true;
         AddressInput.Text = $"18500 Murdock Circle\r18401 Murdock Circle";
-        _isDebug = true;
+        _isDebug = false;
 #endif
     }
 
@@ -101,52 +102,7 @@ public partial class MainPage
 
             try
             {
-                string outputPdf;
-
-                // bypass the file picker if compiled in debug mode
-                if (!_isDebug)
-                {
-                    var fileSaverResult = await FileSaver.Default.SaveAsync(
-                        keyData["address"].Replace(' ', '_') + ".pdf",
-                        await OpenAppPackageFileAsync("input.pdf"));
-                    if (fileSaverResult.IsSuccessful)
-                    {
-                        outputPdf = fileSaverResult.FilePath;
-                        Debug.WriteLine("Success");
-                    }
-                    else
-                    {
-                        Debug.WriteLine("Output PDF selection failed: " + fileSaverResult.Exception);
-                        await MainThread.InvokeOnMainThreadAsync(() =>
-                        {
-                            //((Microsoft.Maui.Controls.Label)_uiObjects[i]["debug"]).Text = "\nOutput PDF selection failed: " + fileSaverResult.Exception;
-                            ((Label)_uiObjects[i]["debug"]).Text = "Output PDF not selected.";
-                        });
-                        return;
-                    }
-                }
-                else
-                {
-                    // check if the folder %userprofile%/PlotOuts exists
-                    if (
-                        !Directory.Exists(
-                            Environment.GetFolderPath(
-                                Environment.SpecialFolder.UserProfile)
-                            + @"\Downloads\PlotOuts"
-                        )
-                    )
-                    {
-                        Directory.CreateDirectory(
-                            Environment.GetFolderPath(
-                                Environment.SpecialFolder.UserProfile)
-                            + @"\Downloads\PlotOuts"
-                        );
-                    }
-
-                    outputPdf = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
-                                + @"\Downloads\PlotOuts\"
-                                + keyData["address"].Replace(' ', '_') + ".pdf";
-                }
+                string outputPdf = _outputFolder + @"\" + keyData["address"].Replace(' ', '_') + ".pdf";
 
                 var legalOutput = SplitStringByLength(keyData["legal"], 90);
                 var lastCitySpace = keyData["city"].LastIndexOf(' ');
@@ -406,6 +362,51 @@ public partial class MainPage
 
             if (_pidList != null)
             {
+                // bypass the folder picker if compiled in debug mode
+                if (!_isDebug)
+                {
+                    var folderPickerResult = await FolderPicker.Default.PickAsync();
+                    if (folderPickerResult.IsSuccessful)
+                    {
+                        _outputFolder = folderPickerResult.Folder.Path;
+                        Debug.WriteLine("Success");
+                    }
+                    else
+                    {
+                        Debug.WriteLine("Output Folder selection failed: " + folderPickerResult.Exception.Message);
+                        await MainThread.InvokeOnMainThreadAsync(() =>
+                        {
+                            //((Microsoft.Maui.Controls.Label)_uiObjects[i]["debug"]).Text = "\nOutput PDF selection failed: " + fileSaverResult.Exception;
+                            for (int i = 0; i < _pidList.Count; i++)
+                            {
+                                ((Label)_uiObjects[i]["debug"]).Text = "Output Folder not selected.";
+                            }
+                        });
+                        return;
+                    }
+                }
+                else
+                {
+                    // check if the folder %userprofile%/PlotOuts exists
+                    if (
+                        !Directory.Exists(
+                            Environment.GetFolderPath(
+                                Environment.SpecialFolder.UserProfile)
+                            + @"\Downloads\PlotOuts"
+                        )
+                    )
+                    {
+                        Directory.CreateDirectory(
+                            Environment.GetFolderPath(
+                                Environment.SpecialFolder.UserProfile)
+                            + @"\Downloads\PlotOuts"
+                        );
+                    }
+
+                    _outputFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+                                + @"\Downloads\PlotOuts\";
+                }
+
                 var tasks = _pidList.Select(PlotParsing).ToList();
                 await Task.WhenAll(tasks);
             }
