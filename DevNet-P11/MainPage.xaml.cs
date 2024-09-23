@@ -19,7 +19,6 @@ public partial class MainPage
     public static readonly Scraper Scraper = new();
     private readonly List<Dictionary<string, IView>> _uiObjects = [];
     private List<string>? _pidList;
-    private string _lastPid = "";
 
     public MainPage()
     {
@@ -27,7 +26,7 @@ public partial class MainPage
 
 #if DEBUG
         //DebugLabel.IsVisible = true;
-        AddressInput.Text = "18500 Murdock Circle\n18401 Murdock Circle";
+        AddressInput.Text = $"18500 Murdock Circle\r18401 Murdock Circle";
         _isDebug = true;
 #endif
     }
@@ -42,26 +41,20 @@ public partial class MainPage
 
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                ((ProgressBar)_uiObjects[i]["progress"]).Progress = 0.33;
+                ((ProgressBar)_uiObjects[i]["progress"]).Progress = 0.1;
                 ((Label)_uiObjects[i]["debug"]).Text = "Starting scraping of " + addr;
             });
             Debug.WriteLine("Starting scraping of " + addr);
 
-            var pid = Scraper.GetPiD(addr);
-            while (pid == _lastPid)
-            {
-                await Task.Delay(100);
-                pid = Scraper.GetPiD(addr);
-            }
+            var pid = Scraper.GetPiD(addr, (Label)_uiObjects[i]["debug"]);
 
-            _lastPid = pid;
-
-            if (pid != "notfound")
+            if (pid != addr + "notfound")
             {
                 Debug.WriteLine("Got ParcelID for " + addr + ": " + pid);
-                await MainThread.InvokeOnMainThreadAsync(
-                    () => { ((Label)_uiObjects[i]["debug"]).Text = "Got ParcelID for " + addr + ": " + pid; }
-                );
+                await MainThread.InvokeOnMainThreadAsync(() => {
+                    ((ProgressBar)_uiObjects[i]["progress"]).Progress = 0.33;
+                    ((Label)_uiObjects[i]["debug"]).Text = "Got ParcelID for " + addr + ": " + pid;
+                });
 
                 outData.Add(pid);
             }
@@ -69,6 +62,7 @@ public partial class MainPage
             {
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
+                    ((Label)_uiObjects[i]["addr"]).Text = $"<strong>{addr} (FAILED)</strong>";
                     ((Label)_uiObjects[i]["debug"]).Text = "Failed to locate property with address: " + addr;
                 });
                 Debug.WriteLine("Failed to locate property with address: " + addr);
@@ -101,7 +95,7 @@ public partial class MainPage
 
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                ((ProgressBar)_uiObjects[i]["progress"]).Progress = 1;
+                ((ProgressBar)_uiObjects[i]["progress"]).Progress = 0.5;
                 ((Label)_uiObjects[i]["debug"]).Text = "Data retrieved.";
             });
 
@@ -182,7 +176,8 @@ public partial class MainPage
                 Debug.WriteLine("Initialized");
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
-                    ((Label)_uiObjects[i]["debug"]).Text = "Adding text to PDF: " + keyData["address"];
+                    ((ProgressBar)_uiObjects[i]["progress"]).Progress = 0.66;
+                    ((Label)_uiObjects[i]["debug"]).Text = "Starting PDF: " + keyData["address"];
                 });
 
                 await AddTextToPdf(
@@ -193,7 +188,10 @@ public partial class MainPage
                 );
 
 
-                await MainThread.InvokeOnMainThreadAsync(() => { ((Label)_uiObjects[i]["debug"]).Text = "Done!"; });
+                await MainThread.InvokeOnMainThreadAsync(() => {
+                    ((ProgressBar)_uiObjects[i]["progress"]).Progress = 1;
+                    ((Label)_uiObjects[i]["debug"]).Text = "Done!"; 
+                });
             }
             catch (Exception ex)
             {
@@ -264,7 +262,10 @@ public partial class MainPage
 
             pdfDoc = new PdfDocument(reader, writer);
 
-            await MainThread.InvokeOnMainThreadAsync(() => { ((Label)_uiObjects[i]["debug"]).Text = "Opened PDF."; });
+            await MainThread.InvokeOnMainThreadAsync(() => {
+                ((ProgressBar)_uiObjects[i]["progress"]).Progress = 0.80;
+                ((Label)_uiObjects[i]["debug"]).Text = "Opened PDF."; 
+            });
         }
         catch (Exception e)
         {
@@ -293,6 +294,7 @@ public partial class MainPage
 
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
+                ((ProgressBar)_uiObjects[i]["progress"]).Progress += 0.015;
                 ((Label)_uiObjects[i]["debug"]).Text = "Added: " + textItem.Key;
             });
         }
@@ -337,7 +339,21 @@ public partial class MainPage
         //ProgressLabel.IsVisible = true;
         //ProgressLabel.Progress = 0;
 
-        var addrList = AddressInput.Text.Split("\n");
+        
+        AddressInput.IsReadOnly = true;
+        RunButton.IsEnabled = false;
+        RunButton.Text = "Please Wait...";
+
+        var addrList = AddressInput.Text.Split("\r").ToList();
+
+        for (int i = 0; i < addrList.Count; i++)
+        {
+            if (addrList[i] == "")
+            {
+                addrList.Remove(addrList[i]);
+                i--;
+            }
+        }
 
         foreach (var item in _uiObjects.SelectMany(items => items.Values))
         {
@@ -384,14 +400,9 @@ public partial class MainPage
 
         Task.Run(async () =>
         {
-            await MainThread.InvokeOnMainThreadAsync(() =>
-            {
-                AddressInput.IsReadOnly = true;
-                RunButton.IsEnabled = false;
-            });
 
             // run the scraper
-            _pidList = await GetPidList(addrList);
+            _pidList = await GetPidList(addrList.ToArray());
 
             if (_pidList != null)
             {
@@ -404,6 +415,7 @@ public partial class MainPage
                 //DebugLabel.Text += "\nDone!";
                 AddressInput.IsReadOnly = false;
                 RunButton.IsEnabled = true;
+                RunButton.Text = "Click to Run";
             });
         });
     }

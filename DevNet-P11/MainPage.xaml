@@ -18,6 +18,8 @@
             <Editor
                 x:Name="AddressInput"
                 IsReadOnly="False"
+                Placeholder="Enter addresses, seperated by a newline (press Enter)..."
+                AutoSize="TextChanges"
             />
 
             <Button

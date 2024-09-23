@@ -2,6 +2,7 @@
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
+using System.Diagnostics;
 
 namespace Devnet_P11.Scraper
 {
@@ -36,19 +37,22 @@ namespace Devnet_P11.Scraper
             _driver.Quit();
         }
 
-        public string GetPiD(string addr)
+        public string GetPiD(string addr, Label debugLabel)
         {
             if (_driver.Url.Contains("https://www.ccappraiser.com/"))
             {
                 _driver.Navigate().GoToUrl("https://agis.charlottecountyfl.gov/ccgis/");
-
-                // Wait for the search bar to load
-                _wait.Until(
-                    SeleniumExtras.WaitHelpers.ExpectedConditions.ElementIsVisible(
-                        By.Id("esri_dijit_Geocoder_0_input")
-                    )
-                );
+            } else
+            {
+                _driver.Navigate().Refresh();
             }
+
+            // Wait for the search bar to load
+            _wait.Until(
+                SeleniumExtras.WaitHelpers.ExpectedConditions.ElementIsVisible(
+                    By.Id("esri_dijit_Geocoder_0_input")
+                )
+            );
 
             // Enter the address into the search bar
             var search = _driver.FindElement(By.Id("esri_dijit_Geocoder_0_input"));
@@ -69,8 +73,16 @@ namespace Devnet_P11.Scraper
             {
                 // try and toggle the table on
 
-                var toggle = _driver.FindElement(By.CssSelector("div[title='Show Table']"));
-                toggle.Click();
+                try
+                {
+                    var toggle = _driver.FindElement(By.CssSelector("div[title='Show Table']"));
+                    toggle.Click();
+                }
+                catch { }
+
+                MainThread.InvokeOnMainThreadAsync(() => {
+                    debugLabel.Text = "Starting scraping of " + addr + " (Attempt #2)";
+                });
 
                 try
                 {
@@ -82,9 +94,11 @@ namespace Devnet_P11.Scraper
                 }
                 catch (WebDriverTimeoutException)
                 {
-                    return "notfound";
+                    return addr + "notfound";
                 }
             }
+
+            Debug.WriteLine("Scrap Addr: " + addr);
 
             // Get the parcel ID
             _wait.Until(
