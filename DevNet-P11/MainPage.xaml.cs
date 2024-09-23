@@ -405,7 +405,7 @@ public partial class MainPage
                     }
 
                     _outputFolder = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
-                                + @"\Downloads\PlotOuts\";
+                                + @"\Downloads\PlotOuts";
                 }
 
                 var tasks = _pidList.Select(PlotParsing).ToList();
