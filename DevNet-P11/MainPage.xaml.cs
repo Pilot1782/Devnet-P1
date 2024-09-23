@@ -28,7 +28,7 @@ public partial class MainPage
 #if DEBUG
         //DebugLabel.IsVisible = true;
         AddressInput.Text = $"18500 Murdock Circle\r18401 Murdock Circle";
-        _isDebug = false;
+        _isDebug = true;
 #endif
     }
 
