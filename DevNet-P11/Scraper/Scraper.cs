@@ -94,7 +94,7 @@ namespace Devnet_P11.Scraper
                 }
                 catch (WebDriverTimeoutException)
                 {
-                    return addr + "notfound";
+                    return "notfound";
                 }
             }
 

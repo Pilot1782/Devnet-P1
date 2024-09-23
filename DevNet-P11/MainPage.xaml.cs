@@ -48,7 +48,7 @@ public partial class MainPage
 
             var pid = Scraper.GetPiD(addr, (Label)_uiObjects[i]["debug"]);
 
-            if (pid != addr + "notfound")
+            if (pid != "notfound")
             {
                 Debug.WriteLine("Got ParcelID for " + addr + ": " + pid);
                 await MainThread.InvokeOnMainThreadAsync(() => {
