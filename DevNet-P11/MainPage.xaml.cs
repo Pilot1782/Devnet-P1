@@ -380,6 +380,7 @@ public partial class MainPage
                             for (int i = 0; i < _pidList.Count; i++)
                             {
                                 if (_pidList[i] == "0") { continue; }
+                                ((Label)_uiObjects[i]["addr"]).Text = $"<strong>{addrList[i]} (Cancelled)</strong>";
                                 ((Label)_uiObjects[i]["debug"]).Text = "Output Folder not selected.";
                             }
                         });
