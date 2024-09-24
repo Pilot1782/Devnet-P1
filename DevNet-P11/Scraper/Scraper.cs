@@ -1,6 +1,7 @@
 ﻿using HtmlAgilityPack;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium.Firefox;
 using OpenQA.Selenium.Support.UI;
 using System.Diagnostics;
 
@@ -17,8 +18,7 @@ namespace Devnet_P11.Scraper
             chromeDriverService.HideCommandPromptWindow = true; // Hiding CMD window
 
             var chromeOptions = new ChromeOptions();
-            chromeOptions.AddArguments("headless"); // Hiding chrome instance
-            chromeOptions.AddArgument("--window-position=-32000,-32000"); // HIDE IT MORE
+            chromeOptions.AddArgument("headless"); // Hiding chrome instance
 
             _driver = new ChromeDriver(chromeDriverService, chromeOptions);
             _wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(10));
@@ -35,6 +35,7 @@ namespace Devnet_P11.Scraper
 
         public void Shutdown()
         {
+            _driver.Close();
             _driver.Quit();
         }
 
