@@ -17,19 +17,12 @@ namespace Devnet_P11.Scraper
             chromeDriverService.HideCommandPromptWindow = true; // Hiding CMD window
 
             var chromeOptions = new ChromeOptions();
-            chromeOptions.AddArgument("headless"); // Hiding chrome instance
+            chromeOptions.AddArgument("--headless=old"); // Hiding chrome instance
 
             _driver = new ChromeDriver(chromeDriverService, chromeOptions);
             _wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(10));
-
+            
             _driver.Navigate().GoToUrl("https://agis.charlottecountyfl.gov/ccgis/");
-
-            // Wait for the search bar to load
-            _wait.Until(
-                SeleniumExtras.WaitHelpers.ExpectedConditions.ElementIsVisible(
-                    By.Id("esri_dijit_Geocoder_0_input")
-                )
-            );
         }
 
         public void Shutdown()
@@ -38,15 +31,14 @@ namespace Devnet_P11.Scraper
             _driver.Quit();
         }
 
+        public void Close()
+        {
+            _driver.Close();
+        }
+
         public string GetPiD(string addr, Label debugLabel)
         {
-            if (_driver.Url.Contains("https://www.ccappraiser.com/"))
-            {
-                _driver.Navigate().GoToUrl("https://agis.charlottecountyfl.gov/ccgis/");
-            } else
-            {
-                _driver.Navigate().Refresh();
-            }
+            _driver.Navigate().Refresh();
 
             // Wait for the search bar to load
             _wait.Until(
