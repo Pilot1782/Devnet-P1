@@ -31,11 +31,6 @@ namespace Devnet_P11.Scraper
             _driver.Quit();
         }
 
-        public void Close()
-        {
-            _driver.Close();
-        }
-
         public string GetPiD(string addr, Label debugLabel)
         {
             _driver.Navigate().Refresh();

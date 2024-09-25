@@ -359,7 +359,6 @@ public partial class MainPage
 
             // run the scraper
             _pidList = await GetPidList(addrList.ToArray());
-            Scraper.Close();
 
             if (_pidList != null)
             {
