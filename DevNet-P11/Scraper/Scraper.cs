@@ -35,9 +35,6 @@ namespace Devnet_P11.Scraper
             {
                 _csvLines.Add(reader.ReadLineAsync().Result ?? string.Empty);
             }
-
-            GetPidLocal("test");
-            GetPid("test", new Label(), new ProgressBar());
         }
 
         public void Shutdown()
