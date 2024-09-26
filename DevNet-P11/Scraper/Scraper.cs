@@ -11,6 +11,7 @@ namespace Devnet_P11.Scraper
     {
         private readonly IWebDriver _driver;
         private readonly WebDriverWait _wait;
+        private readonly List<string> _csvLines;
 
         public Scraper()
         {
@@ -24,6 +25,16 @@ namespace Devnet_P11.Scraper
             _wait = new WebDriverWait(_driver, TimeSpan.FromSeconds(10));
             
             _driver.Navigate().GoToUrl("https://agis.charlottecountyfl.gov/ccgis/");
+
+            var csvReader = OpenAppPackageFileAsync("gis.csv").Result;
+
+            _csvLines = new List<string>();
+            if (_csvLines == null) throw new ArgumentNullException(nameof(_csvLines));
+            using var reader = new StreamReader(csvReader);
+            while (!reader.EndOfStream)
+            {
+                _csvLines.Add(reader.ReadLineAsync().Result ?? string.Empty);
+            }
         }
 
         public void Shutdown()
@@ -32,7 +43,7 @@ namespace Devnet_P11.Scraper
             _driver.Quit();
         }
 
-        public string GetPiD(string addr, Label debugLabel)
+        public string GetPiD(string addr, Label debugLabel, ProgressBar progressBar)
         {
             _driver.Navigate().Refresh();
 
@@ -70,7 +81,8 @@ namespace Devnet_P11.Scraper
                 catch { }
 
                 MainThread.InvokeOnMainThreadAsync(() => {
-                    debugLabel.Text = "Starting scraping of " + addr + " (Attempt #2)";
+                    progressBar.Progress = 0.25;
+                    debugLabel.Text = "Starting scraping of " + addr + " (ONLINE, Attempt #2)";
                 });
 
                 try
@@ -101,27 +113,17 @@ namespace Devnet_P11.Scraper
             return plist.Count != 0 ? plist[1].Text : "notfound";
         }
 
-        public async Task<string> GetPidLocal(string addr)
+        public string GetPidLocal(string addr)
         {
-            var csvReader = await OpenAppPackageFileAsync("gis.csv");
-
-            var lines = new List<string>();
-            if (lines == null) throw new ArgumentNullException(nameof(lines));
-            using var reader = new StreamReader(csvReader);
-            while (!reader.EndOfStream)
-            {
-                lines.Add(await reader.ReadLineAsync() ?? string.Empty);
-            }
-
             addr = StreetAbv(addr).ToLower().Trim();
 
             // Binary search for the address
             var min = 0;
-            var max = lines.Count - 1;
+            var max = _csvLines.Count - 1;
             while (min <= max)
             {
                 var mid = (min + max) / 2;
-                var line = lines[mid].Split(",");
+                var line = _csvLines[mid].Split(",");
                 var lineAddr = line[0].ToLower().Trim();
                 var linePid = line[1];
 

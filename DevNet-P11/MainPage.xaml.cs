@@ -20,6 +20,7 @@ public partial class MainPage
     private readonly List<Dictionary<string, IView>> _uiObjects = [];
     private List<string>? _pidList;
     private string _outputFolder;
+    private Label? _buffer;
 
     public MainPage()
     {
@@ -27,7 +28,7 @@ public partial class MainPage
 
 #if DEBUG
         //DebugLabel.IsVisible = true;
-        AddressInput.Text = $"18500 Murdock Circle\n18401 Murdock Circle\n1120 EL JOBEAN RD\n17701 MURDOCK CIR";
+        AddressInput.Text = $"18500 Murdock Circle\r18401 Murdock Circle\r1120 EL JOBEAN RD\r17701 MURDOCK CIR\rTest\r124 InvalidARR";
         _isDebug = true;
 #endif
     }
@@ -43,15 +44,19 @@ public partial class MainPage
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 ((ProgressBar)_uiObjects[i]["progress"]).Progress = 0.1;
-                ((Label)_uiObjects[i]["debug"]).Text = "Starting scraping of " + addr;
+                ((Label)_uiObjects[i]["debug"]).Text = "Starting scraping of " + addr + " (LOCAL)";
             });
             Debug.WriteLine("Starting scraping of " + addr);
 
-            var pid = await Scraper.GetPidLocal(addr);
+            var pid = Scraper.GetPidLocal(addr);
             if (pid == "")
             {
                 Debug.WriteLine("Trying online for " + addr);
-                pid = Scraper.GetPiD(addr, (Label)_uiObjects[i]["debug"]);
+                await MainThread.InvokeOnMainThreadAsync(() => {
+                    ((ProgressBar)_uiObjects[i]["progress"]).Progress = 0.2;
+                    ((Label)_uiObjects[i]["debug"]).Text = "Starting scraping of " + addr + " (ONLINE)";
+                });
+                pid = Scraper.GetPiD(addr, (Label)_uiObjects[i]["debug"], (ProgressBar)_uiObjects[i]["progress"]);
             }
 
             if (pid != "notfound")
@@ -109,7 +114,10 @@ public partial class MainPage
             {
                 string outputPdf = _outputFolder + @"\" + keyData["address"].Replace(' ', '_') + ".pdf";
 
-                var legalOutput = SplitStringByLength(keyData["legal"], 90);
+                var legalOutput1Line = SplitStringByLengthSingle(keyData["legal"], 110);
+                Debug.WriteLine(legalOutput1Line);
+                Debug.WriteLine(keyData["legal"]);
+                var legalOutput = (legalOutput1Line.Length >= keyData["legal"].Length) ? Array.Empty<string>() : SplitStringByLength(keyData["legal"].Substring(legalOutput1Line.Length), 140);
                 var lastCitySpace = keyData["city"].LastIndexOf(' ');
                 var city = keyData["city"][..lastCitySpace];
                 var zip = keyData["city"][(lastCitySpace + 1)..];
@@ -122,7 +130,8 @@ public partial class MainPage
                     { keyData["township"], new System.Drawing.Point(142, 591) },
                     { keyData["range"], new System.Drawing.Point(187, 591) },
                     { "CHARLOTTE", new System.Drawing.Point(232, 591) },
-                    { keyData["parcelId"], new System.Drawing.Point(480, 591) }
+                    { keyData["parcelId"], new System.Drawing.Point(480, 591) },
+                    { legalOutput1Line, new System.Drawing.Point(158, 648) }
                 };
 
                 // add the legal output with line breaking
@@ -130,7 +139,7 @@ public partial class MainPage
                 {
                     textToAdd.Add(
                         legalOutput[j],
-                        new System.Drawing.Point(158, 648 - (j * 11))
+                        new System.Drawing.Point(70, 648 - (j * 11) - 11)
                     );
                 }
 
@@ -244,7 +253,7 @@ public partial class MainPage
         // get the text from the doc
         var canvas = new PdfCanvas(pdfDoc.GetFirstPage());
         var font = PdfFontFactory.CreateFont(StandardFonts.HELVETICA);
-        canvas.SetFontAndSize(font, 8);
+        canvas.SetFontAndSize(font, 7);
 
         foreach (var textItem in textToAdd)
         {
@@ -271,6 +280,23 @@ public partial class MainPage
     }
 
     // Multi-line splitting
+    private static string SplitStringByLengthSingle(string input, int maxLength)
+    {
+        var words = input.Split(' ');
+        var lines = new List<string>();
+        var currentLine = new StringBuilder();
+        foreach (var word in words)
+        {
+            if (currentLine.Length + word.Length >= maxLength)
+            {
+                return currentLine.ToString();
+            }
+
+            currentLine.Append(word + " ");
+        }
+
+        return currentLine.ToString();
+    }
     private static string[] SplitStringByLength(string input, int maxLength)
     {
         var words = input.Split(' ');
@@ -323,6 +349,11 @@ public partial class MainPage
 
         _uiObjects.Clear();
 
+        if (_buffer != null)
+        {
+            ThisStackLayout.Children.Remove(_buffer);
+        }
+
 
         foreach (var addr in addrList)
         {
@@ -359,6 +390,12 @@ public partial class MainPage
             _uiObjects.Add(dic);
         }
 
+        _buffer = new Label
+        {
+            Text = "\r\r"
+        };
+        ThisStackLayout.Children.Add(_buffer);
+
         Task.Run(async () =>
         {
 
@@ -367,6 +404,17 @@ public partial class MainPage
 
             if (_pidList != null)
             {
+                bool success = false;
+                foreach (var pid in _pidList)
+                {
+                    if (pid != "notfound")
+                    {
+                        success = true;
+                        break;
+                    }
+                }
+
+                if (!success) { return; }
                 // bypass the folder picker if compiled in debug mode
                 if (!_isDebug)
                 {
