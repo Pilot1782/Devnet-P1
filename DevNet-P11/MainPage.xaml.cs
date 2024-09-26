@@ -15,7 +15,7 @@ namespace DevNet_P11;
 
 public partial class MainPage
 {
-    private readonly bool _isDebug = false;
+    private readonly bool _isDebug;
     public static readonly Scraper Scraper = new();
     private readonly List<Dictionary<string, IView>> _uiObjects = [];
     private List<string>? _pidList;
@@ -24,13 +24,19 @@ public partial class MainPage
 
     public MainPage()
     {
+        _outputFolder = "";
+        _isDebug = false;
         InitializeComponent();
 
 #if DEBUG
         //DebugLabel.IsVisible = true;
-        AddressInput.Text = $"18500 Murdock Circle\r18401 Murdock Circle\r1120 EL JOBEAN RD\r17701 MURDOCK CIR\rTest\r124 InvalidARR";
+        AddressInput.Text = "18500 Murdock Circle\r18401 Murdock Circle\r" +
+                            "1120 EL JOBEAN RD\r17701 MURDOCK CIR\r" +
+                            "2989 ROCK CREEK DR\r29890 BERMONT RD\r" +
+                            "299 ANTIS DR";
         _isDebug = true;
 #endif
+        _ = Scraper.GetPidLocal("Test");
     }
 
     private async Task<List<string>?> GetPidList(string[] addrList)
@@ -283,7 +289,6 @@ public partial class MainPage
     private static string SplitStringByLengthSingle(string input, int maxLength)
     {
         var words = input.Split(' ');
-        var lines = new List<string>();
         var currentLine = new StringBuilder();
         foreach (var word in words)
         {
@@ -319,6 +324,9 @@ public partial class MainPage
 
     private void OnRunClicked(object sender, EventArgs e)
     {
+        var sw = Stopwatch.StartNew();
+        sw.Start();
+
         // ensure that text is present
         if (AddressInput.Text == "") return;
 
@@ -472,6 +480,9 @@ public partial class MainPage
                 AddressInput.IsReadOnly = false;
                 RunButton.IsEnabled = true;
                 RunButton.Text = "Click to Run";
+
+                sw.Stop();
+                Debug.WriteLine("Time elapsed: " + sw.Elapsed);
             });
         });
     }
