@@ -3,6 +3,7 @@ using OpenQA.Selenium;
 using OpenQA.Selenium.Chrome;
 using OpenQA.Selenium.Support.UI;
 using System.Diagnostics;
+using static Microsoft.Maui.Storage.FileSystem;
 
 namespace Devnet_P11.Scraper
 {
@@ -98,6 +99,267 @@ namespace Devnet_P11.Scraper
             var plist = _driver.FindElements(By.ClassName("field-ACCOUNT"));
 
             return plist.Count != 0 ? plist[1].Text : "notfound";
+        }
+
+        public async Task<string> GetPidLocal(string addr)
+        {
+            var csvReader = await OpenAppPackageFileAsync("gis.csv");
+
+            var lines = new List<string>();
+            if (lines == null) throw new ArgumentNullException(nameof(lines));
+            using var reader = new StreamReader(csvReader);
+            while (!reader.EndOfStream)
+            {
+                lines.Add(await reader.ReadLineAsync() ?? string.Empty);
+            }
+
+            addr = StreetAbv(addr).ToLower().Trim();
+
+            // Binary search for the address
+            var min = 0;
+            var max = lines.Count - 1;
+            while (min <= max)
+            {
+                var mid = (min + max) / 2;
+                var line = lines[mid].Split(",");
+                var lineAddr = line[0].ToLower().Trim();
+                var linePid = line[1];
+
+                if (lineAddr == addr)
+                {
+                    return linePid;
+                }
+
+                if (string.Compare(lineAddr, addr, StringComparison.Ordinal) < 0)
+                {
+                    min = mid + 1;
+                }
+                else
+                {
+                    max = mid - 1;
+                }
+            }
+
+            return "";
+        }
+
+        private static string StreetAbv(string street)
+        {
+            var abv = new Dictionary<string, string>()
+            {
+                { "Alley", "ALY" },
+                { "Club", "CLB" },
+                { "Flat", "FLT" },
+                { "Inlet", "INLT" },
+                { "Annex", "ANX" },
+                { "Common", "CMN" },
+                { "Flats", "FLTS" },
+                { "Island", "IS" },
+                { "Apartment", "APT" },
+                { "Corner", "COR" },
+                { "Floor", "FL" },
+                { "Islands", "ISS" },
+                { "Arcade", "ARC" },
+                { "Corners", "CORS" },
+                { "Ford", "FRD" },
+                { "Isle", "ISLE" },
+                { "Avenue", "AVE" },
+                { "Course", "CRSE" },
+                { "Fords", "FRDS" },
+                { "Junction", "JCT" },
+                { "Basement", "BSMT" },
+                { "Court", "CT" },
+                { "Forest", "FRST" },
+                { "Junctions", "JCTS" },
+                { "Bayou", "BYU" },
+                { "Courts", "CTS" },
+                { "Forge", "FRG" },
+                { "Key", "KY" },
+                { "Beach", "BCH" },
+                { "Cove", "CV" },
+                { "Forges", "FRGS" },
+                { "Keys", "KYS" },
+                { "Bend", "BND" },
+                { "Coves", "CVS" },
+                { "Fork", "FRK" },
+                { "Knoll", "KNL" },
+                { "Bluff", "BLF" },
+                { "Creek", "CRK" },
+                { "Forks", "FRKS" },
+                { "Knolls", "KNLS" },
+                { "Bluffs", "BLFS" },
+                { "Crescent", "CRES" },
+                { "Fort", "FT" },
+                { "Lake", "LK" },
+                { "Bottom", "BTM" },
+                { "Crest", "CRST" },
+                { "Freeway", "FWY" },
+                { "Lakes", "LKS" },
+                { "Boulevard", "BLVD" },
+                { "Crossing", "XING" },
+                { "Front", "FRNT" },
+                { "Land", "LAND" },
+                { "Branch", "BR" },
+                { "Crossroad", "XRD" },
+                { "Garden", "GDN" },
+                { "Landing", "LNDG" },
+                { "Bridge", "BRG" },
+                { "Curve", "CURV" },
+                { "Gardens", "GDNS" },
+                { "Lane", "LN" },
+                { "Brook", "BRK" },
+                { "Dale", "DL" },
+                { "Gateway", "GTWY" },
+                { "Light", "LGT" },
+                { "Brooks", "BRKS" },
+                { "Dam", "DM" },
+                { "Glen", "GLN" },
+                { "Lights", "LGTS" },
+                { "Building", "BLDG" },
+                { "Department", "DEPT" },
+                { "Glens", "GLNS" },
+                { "Loaf", "LF" },
+                { "Burg", "BG" },
+                { "Divide", "DV" },
+                { "Green", "GRN" },
+                { "Lobby", "LBBY" },
+                { "Burgs", "BGS" },
+                { "Drive", "DR" },
+                { "Greens", "GRNS" },
+                { "Lock", "LCK" },
+                { "Bypass", "BYP" },
+                { "Drives", "DRS" },
+                { "Grove", "GRV" },
+                { "Locks", "LCKS" },
+                { "Camp", "CP" },
+                { "Estate", "EST" },
+                { "Groves", "GRVS" },
+                { "Lodge", "LDG" },
+                { "Canyon", "CYN" },
+                { "Estates", "ESTS" },
+                { "Hangar", "HNGR" },
+                { "Loop", "LOOP" },
+                { "Cape", "CPE" },
+                { "Expressway", "EXPY" },
+                { "Harbor", "HBR" },
+                { "Lot", "LOT" },
+                { "Causeway", "CSWY" },
+                { "Extension", "EXT" },
+                { "Harbors", "HBRS" },
+                { "Lower", "LOWR" },
+                { "Center", "CTR" },
+                { "Centers", "CTRS" },
+                { "Fall", "FALL" },
+                { "Heights", "HTS" },
+                { "Manor", "MNR" },
+                { "Circle", "CIR" },
+                { "Circles", "CIRS" },
+                { "Ferry", "FRY" },
+                { "Hill", "HL" },
+                { "Meadow", "MDW" },
+                { "Mill", "ML" },
+                { "Mills", "MLS" },
+                { "Plains", "PLNS" },
+                { "Shores", "SHRS" },
+                { "Trailer", "TRLR" },
+                { "Mission", "MSN" },
+                { "Point", "PT" },
+                { "Skyway", "SKWY" },
+                { "Turnpike", "TPKE" },
+                { "Motorway", "MTWY" },
+                { "Points", "PTS" },
+                { "Slip", "SLIP" },
+                { "Underpass", "UPAS" },
+                { "Mount", "MT" },
+                { "Port", "PRT" },
+                { "Space", "SPC" },
+                { "Union", "UN" },
+                { "Mountain", "MTN" },
+                { "Prairie", "PR" },
+                { "Spring", "SPG" },
+                { "Unions", "UNS" },
+                { "Mountains", "MTNS" },
+                { "Neck", "NCK" },
+                { "Ramp", "RAMP" },
+                { "Spur", "SPUR" },
+                { "Upper", "UPPR" },
+                { "Office", "OFC" },
+                { "Ranch", "RNCH" },
+                { "Spurs", "SPUR" },
+                { "Valley", "VLY" },
+                { "Orchard", "ORCH" },
+                { "Rapid", "RPD" },
+                { "Square", "SQ" },
+                { "Valleys", "VLYS" },
+                { "Oval", "OVAL" },
+                { "Rapids", "RPDS" },
+                { "Squares", "SQS" },
+                { "Viaduct", "VIA" },
+                { "Overpass", "OPAS" },
+                { "Rear", "REAR" },
+                { "Station", "STA" },
+                { "View", "VW" },
+                { "Park", "PARK" },
+                { "Rest", "RST" },
+                { "Stop", "STOP" },
+                { "Views", "VWS" },
+                { "Ridge", "RDG" },
+                { "Ridges", "RDGS" },
+                { "Stream", "STRM" },
+                { "Villages", "VLGS" },
+                { "Parkway", "PKWY" },
+                { "River", "RIV" },
+                { "Street", "ST" },
+                { "Ville", "VL" },
+                { "Pass", "PASS" },
+                { "Road", "RD" },
+                { "Streets", "STS" },
+                { "Vista", "VIS" },
+                { "Passage", "PSGE" },
+                { "Routes", "RTE" },
+                { "Summit", "SMT" },
+                { "Walk", "WALK" },
+                { "Penthouse", "PH" },
+                { "Row", "ROW" },
+                { "Terrace", "TER" },
+                { "Walks", "WALK" },
+                { "Pier", "PIER" },
+                { "Rue", "RUE" },
+                { "Throughway", "TRWY" },
+                { "Wall", "WALL" },
+                { "Pike", "PIKE" },
+                { "Run", "RUN" },
+                { "Trace", "TRCE" },
+                { "Way", "WAY" },
+                { "Pine", "PNE" },
+                { "Shoal", "SHL" },
+                { "Track", "TRAK" },
+                { "Ways", "WAYS" },
+                { "Pines", "PNES" },
+                { "Shoals", "SHLS" },
+                { "Trafficway", "TRFY" },
+                { "Well", "WL" },
+                { "Place", "PL" },
+                { "Shore", "SHR" },
+                { "Trail", "TRL" },
+                { "Wells", "WLS" },
+                { "Plain", "PLN" }
+            };
+
+            var @out = "";
+            foreach (var word in street.Split(" "))
+            {
+                if (abv.TryGetValue(word, out var value))
+                {
+                    @out += value + " ";
+                }
+                else
+                {
+                    @out += word + " ";
+                }
+            }
+
+            return @out;
         }
 
         public static Dictionary<string, string> GetKeyDataAsync(string parcelId)

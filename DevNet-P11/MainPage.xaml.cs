@@ -47,7 +47,12 @@ public partial class MainPage
             });
             Debug.WriteLine("Starting scraping of " + addr);
 
-            var pid = Scraper.GetPiD(addr, (Label)_uiObjects[i]["debug"]);
+            var pid = await Scraper.GetPidLocal(addr);
+            if (pid == "")
+            {
+                Debug.WriteLine("Trying online for " + addr);
+                pid = Scraper.GetPiD(addr, (Label)_uiObjects[i]["debug"]);
+            }
 
             if (pid != "notfound")
             {
