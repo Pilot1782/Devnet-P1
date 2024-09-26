@@ -440,6 +440,10 @@ public partial class MainPage
                                 ((Label)_uiObjects[i]["addr"]).Text = $"<strong>{addrList[i]} (Cancelled)</strong>";
                                 ((Label)_uiObjects[i]["debug"]).Text = "Output Folder not selected.";
                             }
+
+                            AddressInput.IsReadOnly = false;
+                            RunButton.IsEnabled = true;
+                            RunButton.Text = "Click to Run";
                         });
                         return;
                     }
