@@ -108,8 +108,6 @@ public partial class MainPage
                 ((Label)_uiObjects[i]["addr"]).Text = $"<strong>{keyData["address"]}</strong>";
             });
 
-            Debug.WriteLine(JsonConvert.SerializeObject(keyData));
-
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 ((ProgressBar)_uiObjects[i]["progress"]).Progress = 0.5;
@@ -121,8 +119,6 @@ public partial class MainPage
                 string outputPdf = _outputFolder + @"\" + keyData["address"].Replace(' ', '_') + ".pdf";
 
                 var legalOutput1Line = SplitStringByLengthSingle(keyData["legal"], 110);
-                Debug.WriteLine(legalOutput1Line);
-                Debug.WriteLine(keyData["legal"]);
                 var legalOutput = (legalOutput1Line.Length >= keyData["legal"].Length) ? Array.Empty<string>() : SplitStringByLength(keyData["legal"].Substring(legalOutput1Line.Length), 140);
                 var lastCitySpace = keyData["city"].LastIndexOf(' ');
                 var city = keyData["city"][..lastCitySpace];
