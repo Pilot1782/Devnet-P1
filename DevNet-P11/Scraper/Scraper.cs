@@ -35,6 +35,9 @@ namespace Devnet_P11.Scraper
             {
                 _csvLines.Add(reader.ReadLineAsync().Result ?? string.Empty);
             }
+
+            GetPidLocal("test");
+            GetPid("test", new Label(), new ProgressBar());
         }
 
         public void Shutdown()
@@ -43,7 +46,7 @@ namespace Devnet_P11.Scraper
             _driver.Quit();
         }
 
-        public string GetPiD(string addr, Label debugLabel, ProgressBar progressBar)
+        public string GetPid(string addr, Label debugLabel, ProgressBar progressBar)
         {
             _driver.Navigate().Refresh();
 
@@ -78,7 +81,9 @@ namespace Devnet_P11.Scraper
                     var toggle = _driver.FindElement(By.CssSelector("div[title='Show Table']"));
                     toggle.Click();
                 }
-                catch { }
+                catch (ElementClickInterceptedException) {
+                    return "notfound";
+                }
 
                 MainThread.InvokeOnMainThreadAsync(() => {
                     progressBar.Progress = 0.25;

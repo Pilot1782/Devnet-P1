@@ -56,7 +56,7 @@ public partial class MainPage
                     ((ProgressBar)_uiObjects[i]["progress"]).Progress = 0.2;
                     ((Label)_uiObjects[i]["debug"]).Text = "Starting scraping of " + addr + " (ONLINE)";
                 });
-                pid = Scraper.GetPiD(addr, (Label)_uiObjects[i]["debug"], (ProgressBar)_uiObjects[i]["progress"]);
+                pid = Scraper.GetPid(addr, (Label)_uiObjects[i]["debug"], (ProgressBar)_uiObjects[i]["progress"]);
             }
 
             if (pid != "notfound")
